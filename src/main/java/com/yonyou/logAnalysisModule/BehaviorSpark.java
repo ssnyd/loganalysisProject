@@ -143,7 +143,7 @@ public class BehaviorSpark {
                         while (iterator.hasNext()) {
                             tuple = iterator.next();
                             if(tuple!=null){
-                                Put put = new Put((String.valueOf(tuple._1+":"+ UUID.randomUUID().toString().replace("-", ""))).getBytes());
+                                Put put = new Put((String.valueOf(tuple._1+":1"+ UUID.randomUUID().toString().replace("-", ""))).getBytes());
                                 put.addColumn(Bytes.toBytes("member_dowhat"),Bytes.toBytes("log"),Bytes.toBytes(tuple._2));
                                 puts.add(put);
                             }

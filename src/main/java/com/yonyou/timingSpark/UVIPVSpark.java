@@ -110,7 +110,7 @@ public class UVIPVSpark {
             @Override
             public Boolean call(String v1) throws Exception {
                 String[] str = v1.split("\t");
-                return (!"empty".equals(str[23].split(":")[1])) && str[24].split(":").length == 2;
+                return str.length == 27 && str[26].split(":").length == 2 && str[25].split(":").length == 2 && str[23].split(":").length == 2 && (!"empty".equals(str[23].split(":")[1])) && str[24].split(":").length == 2;
             }
         }).mapPartitions(new FlatMapFunction<Iterator<String>, ApplysStat>() {
             @Override

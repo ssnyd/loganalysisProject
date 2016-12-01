@@ -116,6 +116,12 @@ public class applySpark {
                     }
                     return list;
                 }
+            }).filter(new Function<String, Boolean>() {
+                @Override
+                public Boolean call(String s) throws Exception {
+
+                    return s.split("&")[1].split(":").length ==2 && s.split("&")[0].split(":").length ==2;
+                }
             });
             //获得rpid 通过mysql获得
             JavaRDD<String> reipRDD = openIdRDD.mapPartitions(new FlatMapFunction<Iterator<String>, String>() {

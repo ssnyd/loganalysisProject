@@ -58,7 +58,12 @@ public class JSONUtil {
         String mtime = jsonObject.getString("mtime");
         return "action:"+action+"&app_id:"+app_id+"&instance_id:"+instance_id+"&qz_id:"+qz_id+"&member_id:"+member_id+"&mtime:"+mtime;
     }
-
+    public static String getmTime(String resultjson){
+        JSONObject jsonObject = JSONObject.parseObject(resultjson);
+        String mtime = "";
+               mtime =  jsonObject.getString("mtime");
+        return mtime;
+    }
 
     /**
      *

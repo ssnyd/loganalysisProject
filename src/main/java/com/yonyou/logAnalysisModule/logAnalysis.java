@@ -62,7 +62,7 @@ public class logAnalysis {
                 .setAppName("logAnalysisStatSpark")
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
                 .set("spark.streaming.blockInterval", "100")//ms→RDD
-//                .set("spark.streaming.unpersist", "true")
+//              .set("spark.streaming.unpersist", "true")
                 .set("spark.shuffle.io.maxRetries", "60")
                 .set("spark.shuffle.io.retryWait", "60s")
                 .set("spark.reducer.maxSizeInFlight", "24")
