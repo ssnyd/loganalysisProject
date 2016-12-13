@@ -56,7 +56,6 @@ public class UVIPVSpark {
         if(args.length==2){
             scan.setStartRow(Bytes.toBytes(args[0]+":#"));
             scan.setStopRow(Bytes.toBytes(args[1]+"::"));
-            System.out.print("");
         }else {
             scan.setStartRow(Bytes.toBytes(DateUtils.getYesterdayDate()+":#"));
             scan.setStopRow(Bytes.toBytes(DateUtils.getYesterdayDate()+"::"));
@@ -69,7 +68,7 @@ public class UVIPVSpark {
             conf.set(TableInputFormat.SCAN, ScanToString);
             JavaPairRDD<ImmutableBytesWritable, Result> myRDD =
                     sc.newAPIHadoopRDD(conf,  TableInputFormat.class,
-                            ImmutableBytesWritable.class, Result.class).repartition(1000);
+                            ImmutableBytesWritable.class, Result.class).repartition(200);
             //读取的每一行数据
             JavaRDD<String> filter = myRDD.map(new Function<Tuple2<ImmutableBytesWritable, Result>, String>() {
                 @Override
@@ -84,7 +83,7 @@ public class UVIPVSpark {
             }).filter(new Function<String, Boolean>() {
                 @Override
                 public Boolean call(String v1) throws Exception {
-                    return v1 != null;
+                    return v1 != null && v1.split("\t").length == 27;
                 }
             });
             filter = filter.persist(StorageLevel.MEMORY_AND_DISK_SER());

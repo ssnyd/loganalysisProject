@@ -55,15 +55,41 @@ public class ESNStreaming2Hbase {
         jssc.awaitTermination();
         jssc.close();
     }
-    public static JavaStreamingContext createContext(){
+
+    /*
+                    * add by song 2016.12.05
+                    */
+    public static JavaStreamingContext createContext() {
         SparkConf conf = new SparkConf()
                 .setAppName("ESNStreaming2Hbase")
-                .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-                .set("spark.streaming.blockInterval", "200")//ms→RDD
-                .set("spark.streaming.unpersist", "true")
-                .set("spark.shuffle.io.maxRetries", "60")
-                .set("spark.shuffle.io.retryWait", "60s")
-                .set("spark.reducer.maxSizeInFlight", "24");
+                //add by song 2016.12.05 调优
+                .set("spark.default.parallelism", "150")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
+                .set("spark.streaming.unpersist", "true")//默认是true，更智能地去持久化（unpersist）RDD,PS:清除已经持久化的RDD数据,1.4之前用spark.cleaner.ttl，之后被废弃，现在用spark.streaming.unpersist
+//                .set("spark.memory.useLegacyMode", "true")//内存模型使用spark1.5版本的老版本的内存模型，这样memoryFraction/memoryFraction才能生效！！！
+//                .set("spark.storage.memoryFraction", "0.5")//留给cache做缓存或持久化用的内存的比例是多少，默认是0.6
+//                .set("spark.shuffle.memoryFraction", "0.3")//留给shuffle的内存是多少，默认是0.2，因为shuffle有可能排序或者一些操作，多给点内存比例会快一点
+                .set("spark.locality.wait", "100ms")
+                .set("spark.shuffle.manager", "hash")//使用hash的shufflemanager
+                .set("spark.shuffle.consolidateFiles", "true")//shufflemap端开启合并较小落地文件（hashshufflemanager方式一个task对应一个文件，开启合并，reduce端有几个就是固定几个文件，提前分配好省着merge了）
+                .set("spark.shuffle.file.buffer", "128")//shufflemap端mini环形缓冲区bucket的大小调大一倍，默认32KB
+                .set("spark.reducer.maxSizeInFlight", "96")//从shufflemap端拉取数据24，默认48M
+                .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
+                .set("spark.shuffle.io.maxRetries", "10")//GC重试次数，默认3
+                .set("spark.shuffle.io.retryWait", "30s")//GC等待时长，默认5s
+                .set("spark.streaming.stopGracefullyOnShutdown", "true")//优雅
+                .set("spark.streaming.blockInterval", "100")//一個blockInterval对应一个task(direct方式没用)
+                .set("spark.streaming.kafka.maxRatePerPartition", "10000")//限制消息消费的速率
+                .set("spark.streaming.backpressure.enabled", "true");//Spark Streaming从v1.5开始引入反压机制（back-pressure）,通过动态控制数据接收速率来适配集群数据处理能力。
+//				.set("spark.speculation","true");//解决纠结的任务，跟mapreduce处理方案一样啊
+        //conf.setMaster("local[2]");//本地测试
+
+        //batch_interval根据my.properties中的参数设置：ESNStreaming2Hbase.time=5
+        //.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+        //.set("spark.streaming.blockInterval", "200")//ms→RDD
+        //.set("spark.streaming.unpersist", "true")
+        //.set("spark.shuffle.io.maxRetries", "60")
+        //.set("spark.shuffle.io.retryWait", "60s")
+        //.set("spark.reducer.maxSizeInFlight", "24");
 //      conf.setMaster("local[2]");//本地测试
         JavaStreamingContext jssc = new JavaStreamingContext(
                 conf, Durations.seconds(Integer.parseInt(ConfigurationManager.getProperty(Constants.ESNSTREAMING2HBASE_TIME))));
@@ -80,21 +106,21 @@ public class ESNStreaming2Hbase {
         final Map<TopicAndPartition, Long> topicOffsets = SparkUtils.getTopicOffsets(ConfigurationManager.getProperty(Constants.KAFKA_METADATA_BROKER_LIST), ConfigurationManager.getProperty(Constants.ESNSTREAMING2HBASE_TOPIC));
 
         Map<TopicAndPartition, Long> consumerOffsets = SparkUtils.getConsumerOffsets(ConfigurationManager.getProperty(Constants.ZOOKEEPER_LIST), ConfigurationManager.getProperty(Constants.ESN_GROUPID), ConfigurationManager.getProperty(Constants.ESNSTREAMING2HBASE_TOPIC));
-        if(null!=consumerOffsets && consumerOffsets.size()>0){
+        if (null != consumerOffsets && consumerOffsets.size() > 0) {
             topicOffsets.putAll(consumerOffsets);
         }
 
-        for(Map.Entry<TopicAndPartition, Long> item:topicOffsets.entrySet()){
-            item.setValue(item.getValue()-Long.parseLong(ConfigurationManager.getProperty(Constants.ESNSTREAMING2HBASE_OFFSET_NUM)));
+        for (Map.Entry<TopicAndPartition, Long> item : topicOffsets.entrySet()) {
+            item.setValue(item.getValue() - Long.parseLong(ConfigurationManager.getProperty(Constants.ESNSTREAMING2HBASE_OFFSET_NUM)));
         }
         //打印topicoffset信息
-        for(Map.Entry<TopicAndPartition,Long> entry:topicOffsets.entrySet()){
-            System.out.println(entry.getKey().topic()+"\t"+entry.getKey().partition()+"\t"+entry.getValue());
+        for (Map.Entry<TopicAndPartition, Long> entry : topicOffsets.entrySet()) {
+            System.out.println(entry.getKey().topic() + "\t" + entry.getKey().partition() + "\t" + entry.getValue());
         }
         JavaInputDStream<String> lines = KafkaUtils.createDirectStream(jssc,
                 String.class, String.class, StringDecoder.class,
                 StringDecoder.class, String.class, kafkaParams,
-                topicOffsets, new Function<MessageAndMetadata<String,String>,String>() {
+                topicOffsets, new Function<MessageAndMetadata<String, String>, String>() {
 
                     public String call(MessageAndMetadata<String, String> v1)
                             throws Exception {
@@ -113,11 +139,12 @@ public class ESNStreaming2Hbase {
                     }
                 }
         );
+        line.repartition(150);
         JavaDStream<String> filter = filterByRequest(line);
         JavaPairDStream<String, String> modify = modifyByIPAndToken(filter);
         modify = modify.persist(StorageLevel.MEMORY_AND_DISK_SER());
         JavaPairDStream<String, String> PVStat = calculatePVSta(modify);
-        lines.foreachRDD(new VoidFunction<JavaRDD<String>>(){
+        lines.foreachRDD(new VoidFunction<JavaRDD<String>>() {
             @Override
             public void call(JavaRDD<String> t) throws Exception {
                 ObjectMapper objectMapper = new ObjectMapper();
@@ -127,10 +154,10 @@ public class ESNStreaming2Hbase {
                 curatorFramework.start();
                 for (OffsetRange offsetRange : offsetRanges.get()) {
                     final byte[] offsetBytes = objectMapper.writeValueAsBytes(offsetRange.untilOffset());
-                    String nodePath = "/consumers/"+ ConfigurationManager.getProperty(Constants.ESN_GROUPID) +"/offsets/" + offsetRange.topic()+ "/" + offsetRange.partition();
-                    if(curatorFramework.checkExists().forPath(nodePath)!=null){
-                        curatorFramework.setData().forPath(nodePath,offsetBytes);
-                    }else{
+                    String nodePath = "/consumers/" + ConfigurationManager.getProperty(Constants.ESN_GROUPID) + "/offsets/" + offsetRange.topic() + "/" + offsetRange.partition();
+                    if (curatorFramework.checkExists().forPath(nodePath) != null) {
+                        curatorFramework.setData().forPath(nodePath, offsetBytes);
+                    } else {
                         curatorFramework.create().creatingParentsIfNeeded().forPath(nodePath, offsetBytes);
                     }
                 }
@@ -139,8 +166,10 @@ public class ESNStreaming2Hbase {
         });
         return jssc;
     }
+
     /**
-     *PV to mysql
+     * PV to mysql
+     *
      * @param modifyLogDStream
      * @return
      */
@@ -156,11 +185,12 @@ public class ESNStreaming2Hbase {
         });
         JavaPairDStream<String, Integer> mapPairDStream = filterDStream.mapToPair(new PairFunction<Tuple2<String, String>, String, Integer>() {
             private static final long serialVersionUID = 1L;
+
             @Override
             public Tuple2<String, Integer> call(Tuple2<String, String> tuple2) throws Exception {
                 String log = tuple2._2;
                 String[] logSplited = log.split("\t");
-                long timestamp = getTime(logSplited[7],0);
+                long timestamp = getTime(logSplited[7], 0);
                 String region = getCity(logSplited[21].split(":")[1]);
                 String key = timestamp + "%" + region;
                 return new Tuple2<String, Integer>(key, 1);
@@ -169,11 +199,12 @@ public class ESNStreaming2Hbase {
         }).reduceByKey(new Function2<Integer, Integer, Integer>() {
             @Override
             public Integer call(Integer v1, Integer v2) throws Exception {
-                return v1+v2;
+                return v1 + v2;
             }
         });
         JavaPairDStream<String, String> maptopair = mapPairDStream.mapToPair(new PairFunction<Tuple2<String, Integer>, String, String>() {
             private static final long serialVersionUID = 1L;
+
             @Override
             public Tuple2<String, String> call(Tuple2<String, Integer> tuple) throws Exception {
                 String[] split = tuple._1.split("%");
@@ -189,12 +220,13 @@ public class ESNStreaming2Hbase {
         });
         maptopair.foreachRDD(new Function<JavaPairRDD<String, String>, Void>() {
             private static final long serialVersionUID = 1L;
+
             @Override
             public Void call(JavaPairRDD<String, String> rdd) throws Exception {
                 rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
                     @Override
                     public void call(Iterator<Tuple2<String, String>> tuples) throws Exception {
-                        List<Map<String,String>> pvStats = new ArrayList<Map<String,String>>();
+                        List<Map<String, String>> pvStats = new ArrayList<Map<String, String>>();
                         Tuple2<String, String> tuple = null;
                         while (tuples.hasNext()) {
                             Map<String, String> pvStat = new HashMap<String, String>();
@@ -203,21 +235,21 @@ public class ESNStreaming2Hbase {
                             pvStat.put("timestamp", tuple._1);
                             for (String str : region_count) {
                                 String[] s = str.split("&");
-                                if (pvStat.get(s[0])!=null){
+                                if (pvStat.get(s[0]) != null) {
                                     int num = Integer.parseInt(pvStat.get(s[0])) + Integer.parseInt(s[1]);
-                                    pvStat.put(s[0],num+"");
-                                }else {
+                                    pvStat.put(s[0], num + "");
+                                } else {
                                     pvStat.put(s[0], s[1]);
                                 }
                             }
                             pvStats.add(pvStat);
                         }
-                        if (pvStats.size()>0){
+                        if (pvStats.size() > 0) {
                             JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                             Connection conn = jdbcUtils.getConnection();
                             ILogStatDAO logStatDAO = DAOFactory.getLogStatDAO();
-                            logStatDAO.updataBatch(pvStats,conn);
-                            System.out.println("mysql  to pvstat ==> "+pvStats.size() );
+                            logStatDAO.updataBatch(pvStats, conn);
+                            System.out.println("mysql  to pvstat ==> " + pvStats.size());
                             pvStats.clear();
                             if (conn != null) {
                                 jdbcUtils.closeConnection(conn);
@@ -229,9 +261,10 @@ public class ESNStreaming2Hbase {
                 return null;
             }
         });
-        return maptopair ;
+        return maptopair;
     }
-    private static long getTime(String timestamp , int num ) {
+
+    private static long getTime(String timestamp, int num) {
         String strDateTime = timestamp.replace("[", "").replace("]", "");
         long datekey = 0l;
         SimpleDateFormat formatter = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
@@ -241,7 +274,7 @@ public class ESNStreaming2Hbase {
         String format = "";
         try {
             t = formatter.parse(strDateTime);
-            if (1 == num ){
+            if (1 == num) {
                 format = day.format(t);
                 t = day.parse(format);
             } else if (2 == num) {
@@ -256,32 +289,35 @@ public class ESNStreaming2Hbase {
     }
 
 
- /**
+    /**
      * filterData
+     *
      * @param line
-  * @return
-  */
- private static JavaDStream<String> filterByRequest(JavaDStream<String> line) {
-     return line.filter(new Function<String, Boolean>() {
-         @Override
-         public Boolean call(String v1) throws Exception {
-             String[] log = v1.split("\t");
-             boolean flag  = false;
-             if (log.length == 20 && "esn".equals(log[3])){
-                 flag = log[19].contains("PHPSESSID");
-             }else if(log.length == 20 && ("api".equals(log[3]) || "h5-api".equals(log[3]) || "pc-api".equals(log[3]) || "m".equals(log[3]))){
-                 flag = v1.contains("token");
-             }
-             return (v1.contains(".htm") || ((!(v1.contains(".js ")||v1.contains(".css")||v1.contains(".js?")||v1.contains(".png")||v1.contains(".gif"))) && flag && 1==1));
-         }
-     });
- }
+     * @return
+     */
+    private static JavaDStream<String> filterByRequest(JavaDStream<String> line) {
+        return line.filter(new Function<String, Boolean>() {
+            @Override
+            public Boolean call(String v1) throws Exception {
+                String[] log = v1.split("\t");
+                boolean flag = false;
+                if (log.length == 20 && "esn".equals(log[3])) {
+                    flag = log[19].contains("PHPSESSID");
+                } else if (log.length == 20 && ("api".equals(log[3]) || "h5-api".equals(log[3]) || "pc-api".equals(log[3]) || "m".equals(log[3]))) {
+                    flag = v1.contains("token");
+                }
+                return (v1.contains(".htm") || ((!(v1.contains(".js ") || v1.contains(".css") || v1.contains(".js?") || v1.contains(".png") || v1.contains(".gif"))) && flag && 1 == 1));
+            }
+        });
+    }
+
     /**
      * 增加新的字段 地址加3ID \t 拼接原始数据
+     *
      * @param filter
      * @return
      */
-    private static JavaPairDStream<String,String> modifyByIPAndToken(JavaDStream<String> filter) {
+    private static JavaPairDStream<String, String> modifyByIPAndToken(JavaDStream<String> filter) {
         JavaPairDStream<String, String> modify = filter.mapToPair(new PairFunction<String, String, String>() {
             @Override
             public Tuple2<String, String> call(String s) throws Exception {
@@ -370,8 +406,8 @@ public class ESNStreaming2Hbase {
                 if (!remote_addr.contains("局域网")) {
                     String value = s + "\t" + remote_addr + "\t" + mquID;
                     String times = getTime(lines[7]);
-                    System.out.println(times+":"+lines[2] + ":" + lines[3] + ":" + lines[8] + "&&" + token + "==>" + lines[9]);
-                    return new Tuple2<String, String>(times+":"+lines[2] + ":" + lines[3] + ":" + lines[8], value);
+                    System.out.println(times + ":" + lines[2] + ":" + lines[3] + ":" + lines[8] + "&&" + token + "==>" + lines[9]);
+                    return new Tuple2<String, String>(times + ":" + lines[2] + ":" + lines[3] + ":" + lines[8], value);
                 } else {
                     return null;
                 }
@@ -395,19 +431,19 @@ public class ESNStreaming2Hbase {
                         List<Put> puts = new ArrayList<Put>();
                         while (tuple2Iterator.hasNext()) {
                             tuple = tuple2Iterator.next();
-                            if(tuple!=null){
+                            if (tuple != null) {
                                 Put put = new Put((String.valueOf(tuple._1)).getBytes());
-                                put.addColumn(Bytes.toBytes("accesslog"),Bytes.toBytes("info"),Bytes.toBytes(tuple._2));
+                                put.addColumn(Bytes.toBytes("accesslog"), Bytes.toBytes("info"), Bytes.toBytes(tuple._2));
                                 puts.add(put);
                             }
                         }
-                        if (puts.size()>0){
+                        if (puts.size() > 0) {
                             HTable hTable = HbaseConnectionFactory.gethTable("esn_accesslog", "accesslog");
                             hTable.put(puts);
                             hTable.flushCommits();
-                            System.out.println("hbase ==> "+puts.size());
+                            System.out.println("hbase ==> " + puts.size());
                             puts.clear();
-                            if (hTable!=null){
+                            if (hTable != null) {
                                 hTable.close();
                             }
                         }
@@ -419,106 +455,98 @@ public class ESNStreaming2Hbase {
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
     /**
      * 获取请求中的token
+     *
      * @param lines
      * @return
      */
     private static String Token(String[] lines) {
         String _token = "";
-        String s1 = lines[10].replace("\\x22", "\"").replace("\"","").replace("\\x5C", "");
+        String s1 = lines[10].replace("\\x22", "\"").replace("\"", "").replace("\\x5C", "");
         String[] split = s1.split(",");
-        for (int i =0 ;i<split.length;i++){
-            if(split[i].contains("token")){
-                if (split[i].split(":").length==2)
-                    _token = split[i].split(":")[1].replace("}","").replace("{","");
+        for (int i = 0; i < split.length; i++) {
+            if (split[i].contains("token")) {
+                if (split[i].split(":").length == 2)
+                    _token = split[i].split(":")[1].replace("}", "").replace("{", "");
                 break;
             }
         }
         return _token;
     }
-    private static String getCity(String city){
+
+    private static String getCity(String city) {
         String str = "haiwai";
         if ("澳门".equals(city)) {
             str = "aomen";
-        }else if ("香港".equals(city)) {
+        } else if ("香港".equals(city)) {
             str = "xianggang";
-        }else if ("台湾".equals(city)) {
+        } else if ("台湾".equals(city)) {
             str = "taiwan";
-        }else if ("广东".equals(city)) {
+        } else if ("广东".equals(city)) {
             str = "guangdong";
-        }else if ("广西".equals(city)) {
+        } else if ("广西".equals(city)) {
             str = "guangxi";
-        }else if ("海南".equals(city)) {
+        } else if ("海南".equals(city)) {
             str = "hainan";
-        }else if ("云南".equals(city)) {
+        } else if ("云南".equals(city)) {
             str = "yunnan";
-        }else if ("福建".equals(city)) {
+        } else if ("福建".equals(city)) {
             str = "fujian";
-        }else if ("江西".equals(city)) {
+        } else if ("江西".equals(city)) {
             str = "jiangxi";
-        }else if ("湖南".equals(city)) {
+        } else if ("湖南".equals(city)) {
             str = "hunan";
-        }else if ("贵州".equals(city)) {
+        } else if ("贵州".equals(city)) {
             str = "guizhou";
-        }else if ("浙江".equals(city)) {
+        } else if ("浙江".equals(city)) {
             str = "zhejiang";
-        }else if ("安徽".equals(city)) {
+        } else if ("安徽".equals(city)) {
             str = "anhui";
-        }else if ("上海".equals(city)) {
+        } else if ("上海".equals(city)) {
             str = "shanghai";
-        }else if ("江苏".equals(city)) {
+        } else if ("江苏".equals(city)) {
             str = "jiangsu";
-        }else if ("湖北".equals(city)) {
+        } else if ("湖北".equals(city)) {
             str = "hubei";
-        }else if ("西藏".equals(city)) {
+        } else if ("西藏".equals(city)) {
             str = "xizang";
-        }else if ("青海".equals(city)) {
+        } else if ("青海".equals(city)) {
             str = "qinghai";
-        }else if ("陕西".equals(city)) {
+        } else if ("陕西".equals(city)) {
             str = "shanxi_shan";
-        }else if ("山西".equals(city)) {
+        } else if ("山西".equals(city)) {
             str = "shanxi_jin";
-        }else if ("河南".equals(city)) {
+        } else if ("河南".equals(city)) {
             str = "henan";
-        }else if ("山东".equals(city)) {
+        } else if ("山东".equals(city)) {
             str = "shandong";
-        }else if ("河北".equals(city)) {
+        } else if ("河北".equals(city)) {
             str = "hebei";
-        }else if ("天津".equals(city)) {
+        } else if ("天津".equals(city)) {
             str = "tianjin";
-        }else if ("北京".equals(city)) {
+        } else if ("北京".equals(city)) {
             str = "beijing";
-        }else if ("宁夏".equals(city)) {
+        } else if ("宁夏".equals(city)) {
             str = "ningxia";
-        }else if ("内蒙古".equals(city)) {
+        } else if ("内蒙古".equals(city)) {
             str = "neimeng";
-        }else if ("辽宁".equals(city)) {
+        } else if ("辽宁".equals(city)) {
             str = "liaoning";
-        }else if ("吉林".equals(city)) {
+        } else if ("吉林".equals(city)) {
             str = "jilin";
-        }else if ("黑龙江".equals(city)) {
+        } else if ("黑龙江".equals(city)) {
             str = "heilongjiang";
-        }else if ("重庆".equals(city)) {
+        } else if ("重庆".equals(city)) {
             str = "chongqing";
-        }else if ("西川".equals(city)) {
+        } else if ("西川".equals(city)) {
             str = "sichuan";
-        }else if ("局域网".equals(city)) {
+        } else if ("局域网".equals(city)) {
             str = "local";
         }
         return str;
     }
+
     private static String getTime(String timestamp) {
         String strDateTime = timestamp.replace("[", "").replace("]", "");
         SimpleDateFormat formatter = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
@@ -532,11 +560,12 @@ public class ESNStreaming2Hbase {
 
         return hour.format(parse);
     }
+
     private static long getDayLong(long time) {
         SimpleDateFormat hour = new SimpleDateFormat("yyyy-MM-dd");
-        long day =0l;
+        long day = 0l;
         try {
-            String format = hour.format(time*1000);
+            String format = hour.format(time * 1000);
             Date date = new Date(time * 1000);
 
             Date parse = hour.parse(format);
@@ -546,14 +575,6 @@ public class ESNStreaming2Hbase {
         }
         return day;
     }
-
-
-
-
-
-
-
-
 
 
 }

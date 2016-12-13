@@ -3,34 +3,25 @@ package com.yonyou.myTest;
 
 
 
-import com.alibaba.fastjson.JSONObject;
-import com.sun.jersey.server.impl.container.servlet.JSPTemplateProcessor;
-import com.yonyou.entity.ApplysStat;
-import com.yonyou.jdbc.JDBCHelper;
-import com.yonyou.jdbc.JDBCUtils;
-import com.yonyou.jdbc.model.PVStatQueryResult;
-import com.yonyou.utils.DateUtils;
-import redis.clients.jedis.Jedis;
-
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.sql.Connection;
-import java.sql.ResultSet;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.*;
 
 public class test1{
     public static void main(String[] args) throws ParseException {
-        ApplysStat as = new ApplysStat();
-        as.setMtime("3423423432");
-
-
-        String json = "{\"action\":\""+as.getAction()+"\",\"app_id\":\""+as.getApp_id()+"\",\"client\":\""+as.getClient()+"\",\"client_ip\":\""+as.getClient_ip()+"\",\"device_model\":\""+as.getDevice_model()+"\",\"device_name\":\""+as.getDevice_name()+"\",\"member_id\":\""+as.getMember_id()+"\",\"mtime\":\""+as.getMtime()+"\",\"qz_id\":\""+as.getQz_id()+"\",\"user_id\":\""+as.getUser_id()+"\",\"ver_code\":\""+as.getVer_code()+"\",\"instance_id\":\""+as.getInstance_id()+"\"}";
-        System.out.println(json);
-        JSONObject jsonObject = JSONObject.parseObject(json);
-                Long mtime = jsonObject.getLong("mtime");
-        System.out.println(mtime);
+        for (int i = 0 ;i<10000;i++) {
+            if ((int) (Math.random() * (4)) > 3) {
+                System.out.println((int) (Math.random() * (4)));
+            }
+        }
+            System.out.println("完啦");
+        //ApplysStat as = new ApplysStat();
+        //as.setMtime("3423423432");
+        //
+        //
+        //String json = "{\"action\":\""+as.getAction()+"\",\"app_id\":\""+as.getApp_id()+"\",\"client\":\""+as.getClient()+"\",\"client_ip\":\""+as.getClient_ip()+"\",\"device_model\":\""+as.getDevice_model()+"\",\"device_name\":\""+as.getDevice_name()+"\",\"member_id\":\""+as.getMember_id()+"\",\"mtime\":\""+as.getMtime()+"\",\"qz_id\":\""+as.getQz_id()+"\",\"user_id\":\""+as.getUser_id()+"\",\"ver_code\":\""+as.getVer_code()+"\",\"instance_id\":\""+as.getInstance_id()+"\"}";
+        //System.out.println(json);
+        //JSONObject jsonObject = JSONObject.parseObject(json);
+        //        Long mtime = jsonObject.getLong("mtime");
+        //System.out.println(mtime);
 
 //        String s = DateUtils.getlasthourDate();
 //        System.out.println(s);

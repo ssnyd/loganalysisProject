@@ -60,7 +60,7 @@ public class JDBCHelper {
     public static int[] executeBatch(Connection conn,String sql, List<Object[]> paramsList) {
         int[] rtn = null;
         PreparedStatement pstmt = null;
-            try {
+        try {
 //            conn.setAutoCommit(false);
             pstmt = conn.prepareStatement(sql);
             if(paramsList != null && paramsList.size() > 0) {

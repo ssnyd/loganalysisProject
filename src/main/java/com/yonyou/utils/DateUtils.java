@@ -9,7 +9,6 @@ import java.util.Locale;
 /**
  * 日期时间工具类
  * Created by ChenXiaoLei on 2016/11/7.
- *
  */
 public class DateUtils {
 
@@ -17,13 +16,14 @@ public class DateUtils {
             new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     public static final SimpleDateFormat DATE_FORMAT =
             new SimpleDateFormat("yyyy:MM:dd");
-      public static final SimpleDateFormat DATE_FORMAT2 =
+    public static final SimpleDateFormat DATE_FORMAT2 =
             new SimpleDateFormat("yyyy:MM:dd:HH");
     public static final SimpleDateFormat DATEKEY_FORMAT =
             new SimpleDateFormat("yyyyMMdd");
 
     /**
      * 判断一个时间是否在另一个时间之前
+     *
      * @param time1 第一个时间
      * @param time2 第二个时间
      * @return 判断结果
@@ -33,7 +33,7 @@ public class DateUtils {
             Date dateTime1 = TIME_FORMAT.parse(time1);
             Date dateTime2 = TIME_FORMAT.parse(time2);
 
-            if(dateTime1.before(dateTime2)) {
+            if (dateTime1.before(dateTime2)) {
                 return true;
             }
         } catch (Exception e) {
@@ -44,6 +44,7 @@ public class DateUtils {
 
     /**
      * 判断一个时间是否在另一个时间之后
+     *
      * @param time1 第一个时间
      * @param time2 第二个时间
      * @return 判断结果
@@ -52,8 +53,7 @@ public class DateUtils {
         try {
             Date dateTime1 = TIME_FORMAT.parse(time1);
             Date dateTime2 = TIME_FORMAT.parse(time2);
-
-            if(dateTime1.after(dateTime2)) {
+            if (dateTime1.after(dateTime2)) {
                 return true;
             }
         } catch (Exception e) {
@@ -64,6 +64,7 @@ public class DateUtils {
 
     /**
      * 计算时间差值（单位为秒）
+     *
      * @param time1 时间1
      * @param time2 时间2
      * @return 差值
@@ -84,6 +85,7 @@ public class DateUtils {
 
     /**
      * 获取年月日和小时
+     *
      * @param datetime 时间（yyyy-MM-dd HH:mm:ss）
      * @return 结果（yyyy-MM-dd_HH）
      */
@@ -96,6 +98,7 @@ public class DateUtils {
 
     /**
      * 获取当天日期（yyyy-MM-dd）
+     *
      * @return 当天日期
      */
     public static String getTodayDate() {
@@ -104,6 +107,7 @@ public class DateUtils {
 
     /**
      * 获取昨天的日期（yyyy-MM-dd）
+     *
      * @return 昨天的日期
      */
     public static String getYesterdayDate() {
@@ -115,8 +119,10 @@ public class DateUtils {
 
         return DATE_FORMAT.format(date);
     }
+
     /**
      * 获取昨天的日期（yyyy-MM-dd-HH）
+     *
      * @return 昨天的日期
      */
     public static String getlasthourDate() {
@@ -129,6 +135,7 @@ public class DateUtils {
 
     /**
      * 格式化日期（yyyy-MM-dd）
+     *
      * @param date Date对象
      * @return 格式化后的日期
      */
@@ -138,6 +145,7 @@ public class DateUtils {
 
     /**
      * 格式化时间（yyyy-MM-dd HH:mm:ss）
+     *
      * @param date Date对象
      * @return 格式化后的时间
      */
@@ -147,6 +155,7 @@ public class DateUtils {
 
     /**
      * 解析时间字符串
+     *
      * @param time 时间字符串
      * @return Date
      */
@@ -161,6 +170,7 @@ public class DateUtils {
 
     /**
      * 格式化日期key
+     *
      * @param date
      * @return
      */
@@ -170,6 +180,7 @@ public class DateUtils {
 
     /**
      * 格式化日期key
+     *
      * @param datekey
      * @return
      */
@@ -185,6 +196,7 @@ public class DateUtils {
     /**
      * 格式化时间，保留到分钟级别
      * yyyyMMddHHmm
+     *
      * @param date
      * @return
      */
@@ -194,7 +206,7 @@ public class DateUtils {
     }
 
 
-        public static String getTime(String timestamp) {
+    public static String getTime(String timestamp) {
         String strDateTime = timestamp.replace("[", "").replace("]", "");
         long datekey = 0l;
         SimpleDateFormat formatter = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
@@ -211,13 +223,14 @@ public class DateUtils {
         }
         return format;
     }
-     public static long timeStamp2Date(Long seconds,String format) {
+
+    public static long timeStamp2Date(Long seconds, String format) {
         long time = 0l;
-            if(seconds == null || seconds.equals("null")){
-                return 0l;
-            }
-          try {
-            if(format == null || format.isEmpty())
+        if (seconds == null || seconds.equals("null")) {
+            return 0l;
+        }
+        try {
+            if (format == null || format.isEmpty())
                 format = "yyyy-MM-dd";
             SimpleDateFormat sdf = new SimpleDateFormat(format);
             String format1 = sdf.format(new Date(seconds));

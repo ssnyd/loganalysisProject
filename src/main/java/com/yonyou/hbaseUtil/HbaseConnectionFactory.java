@@ -20,17 +20,18 @@ public class HbaseConnectionFactory {
     static String columnFamily;
     static HTable hTable;
     static Object locker = new Object();
+
     private HbaseConnectionFactory(String tableName, String columnFamily) {
         HbaseConnectionFactory.tableName = tableName;
         HbaseConnectionFactory.columnFamily = columnFamily;
     }
 
-    public static HTable gethTable(String tableName,String columnFamily){
-        getInstance(tableName,columnFamily);
+    public static HTable gethTable(String tableName, String columnFamily) {
+        getInstance(tableName, columnFamily);
         return hTable;
     }
 
-    public static HbaseConnectionFactory getInstance(String tableName,String columnFamily) {
+    public static HbaseConnectionFactory getInstance(String tableName, String columnFamily) {
         if (singleton == null) {
             synchronized (locker) {
                 if (singleton == null) {
@@ -41,6 +42,7 @@ public class HbaseConnectionFactory {
         }
         return singleton;
     }
+
     private static void initialize() {
         if (hTable == null) {
             synchronized (locker) {
@@ -51,8 +53,8 @@ public class HbaseConnectionFactory {
                     hConfig.set("hbase.defaults.for.version.skip", "true");
                     try {
                         Connection connection = ConnectionFactory.createConnection(hConfig);
-                        hTable = (HTable)connection.getTable(TableName.valueOf(tableName));
-                        hTable.setAutoFlush(false,false);
+                        hTable = (HTable) connection.getTable(TableName.valueOf(tableName));
+                        hTable.setAutoFlush(false, false);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
