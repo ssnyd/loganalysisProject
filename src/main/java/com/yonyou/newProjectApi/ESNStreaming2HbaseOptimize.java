@@ -411,7 +411,7 @@ public class ESNStreaming2HbaseOptimize {
                 } else if (log.length == 20 && ("api".equals(log[3]) || "h5-api".equals(log[3]) || "pc-api".equals(log[3]) || "m".equals(log[3]))) {
                     flag = v1.contains("token");
                 }
-                return (v1.contains(".htm") || ((!(v1.contains(".js ") || v1.contains(".css") || v1.contains(".js?") || v1.contains(".png") || v1.contains(".gif"))) && flag && 1 == 1));
+                return (log[9].contains(".htm") || ((!(v1.contains(".js ") || v1.contains(".css") || v1.contains(".js?") || v1.contains(".png") || v1.contains(".gif"))) && flag && 1 == 1));
             }
         });
     }
@@ -451,7 +451,7 @@ public class ESNStreaming2HbaseOptimize {
                     }
                 }
                 //求mqu
-                if (s.contains(".htm")) {//RDD中的一行中包含".htm"，便不予处理
+                if (lines[9].contains(".htm")) {//RDD中的一行中包含".htm"，便不予处理
                     System.out.println("存在htm 不分析");
                 } else if ("esn".equals(lines[3])) {
                     //lines[19]eg："PHPSESSID=67ivh3pr0oq32hh17p5klokrk5; path=/"
@@ -527,7 +527,7 @@ public class ESNStreaming2HbaseOptimize {
                     //[29/Nov/2016:13:52:50 +0800]
                     //getTime后格式：yyyy:MM:dd:HH:mm:ss
                     String times = getTime(lines[7]);
-                    //System.out.println(times+":"+lines[2] + ":" + lines[3] + ":" + lines[8] + "&&" + token + "==>" + lines[9]);
+                    System.out.println(times+":"+lines[2] + ":" + lines[3] + ":" + lines[8] + "&&" + token + "==>" + lines[9]);
                     //lines[2] eg:172.20.1.177
                     //lines[3] eg:esn
                     //lines[8] eg:1480398770.021
@@ -613,7 +613,7 @@ public class ESNStreaming2HbaseOptimize {
      * @param lines
      * @return
      */
-    private static String Token(String[] lines) {
+    public static String Token(String[] lines) {
         String _token = "";
         //lines[10]eg：
         //{\x22ek\x22:\x22fe657e562ce31f17dc2bb289afd1c81c\x22,\x22access_token\x22:\x2250a4360790acd695e6d1de9850d4dbfbd337bd1a\x22,\x22qz_id\x22:\x221\x22,\x22et\x22:\x221480398797\x22,\x22appType\x22:\x221\x22,\x22vercode\x22:\x221-3.0.6-1-1\x22}
@@ -631,7 +631,7 @@ public class ESNStreaming2HbaseOptimize {
         return _token;
     }
 
-    private static String getCity(String city) {
+    public static String getCity(String city) {
         String str = "haiwai";
         if ("澳门".equals(city)) {
             str = "aomen";
@@ -703,7 +703,7 @@ public class ESNStreaming2HbaseOptimize {
         return str;
     }
 
-    private static String getTime(String timestamp) {
+    public static String getTime(String timestamp) {
         //timestamp eg:[29/Nov/2016:13:52:50 +0800]
         String strDateTime = timestamp.replace("[", "").replace("]", "");
         SimpleDateFormat formatter = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
