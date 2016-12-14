@@ -20,6 +20,8 @@ public class DateUtils {
             new SimpleDateFormat("yyyy:MM:dd:HH");
     public static final SimpleDateFormat DATEKEY_FORMAT =
             new SimpleDateFormat("yyyyMMdd");
+    public static final SimpleDateFormat DATEKEY2_FORMAT =
+            new SimpleDateFormat("mm");
 
     /**
      * 判断一个时间是否在另一个时间之前
@@ -103,6 +105,14 @@ public class DateUtils {
      */
     public static String getTodayDate() {
         return DATE_FORMAT.format(new Date());
+    }
+    /**
+     * 获取当天日期（yyyy-MM-dd hhmm）
+     *
+     * @return 当天日期
+     */
+    public static String getTodayTime() {
+        return DATEKEY2_FORMAT.format(new Date());
     }
 
     /**

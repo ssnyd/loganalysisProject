@@ -1,18 +1,15 @@
 package com.yonyou.timingSpark;
-import com.alibaba.fastjson.JSONObject;
+
 import com.yonyou.dao.IIPVStatDAO;
 import com.yonyou.dao.IUVStatDAO;
 import com.yonyou.dao.factory.DAOFactory;
-import com.yonyou.entity.ApplysStat;
 import com.yonyou.entity.IPVStat;
 import com.yonyou.entity.UVStat;
-import com.yonyou.hbaseUtil.HbaseConnectionFactory;
 import com.yonyou.jdbc.JDBCUtils;
 import com.yonyou.utils.DateUtils;
+import com.yonyou.utils.DateUtils2;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -25,16 +22,17 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.*;
+import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
 
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.sql.Connection;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 /**
  * Created by ChenXiaoLei on 2016/11/28.
  */
@@ -100,7 +98,7 @@ public class UVIPV2hour {
             @Override
             public Tuple2<String, Integer> call(String log) throws Exception {
                 String[] logSplited = log.split("\t");
-                long timestamp = getTime(logSplited[7], 2);//获得每小时的时间戳
+                long timestamp = DateUtils2.getTime(logSplited[7], 2);//获得每小时的时间戳
                 String memberId = logSplited[23].split(":")[1];//获得memid
 //                String memberId = new Random().nextInt(100)+1+"";//获得memid
 //                String qzid = logSplited[24].split(":")[1];//获得qzid
@@ -168,7 +166,7 @@ public class UVIPV2hour {
             @Override
             public Tuple2<String, String> call(String log) throws Exception {
                 String[] logSplited = log.split("\t");
-                long timestamp = getTime(logSplited[7], 2);//每小时的时间戳
+                long timestamp = DateUtils2.getTime(logSplited[7], 2);//每小时的时间戳
                 String ip = logSplited[0];
                 return new Tuple2<String, String>(timestamp + "", ip);
             }
@@ -224,60 +222,6 @@ public class UVIPV2hour {
             }
         });
         return totalRDD;
-    }
-    private static long getTime(String timestamp , int num ) {
-        String strDateTime = timestamp.replace("[", "").replace("]", "");
-        long datekey = 0l;
-        SimpleDateFormat formatter = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
-        SimpleDateFormat day = new SimpleDateFormat("yyyy-MM-dd");
-        SimpleDateFormat hour = new SimpleDateFormat("yyyy-MM-dd HH");
-        Date t = null;
-        String format = "";
-        try {
-            t = formatter.parse(strDateTime);
-            if (1 == num ){
-                format = day.format(t);
-                t = day.parse(format);
-            } else if (2 == num) {
-                format = hour.format(t);
-                t = hour.parse(format);
-            }
-            datekey = t.getTime() / 1000;
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        return datekey;
-    }
-    private static long getTime(String timestamp) {
-        String strDateTime = timestamp.replace("[", "").replace("]", "");
-        long datekey = 0l;
-        SimpleDateFormat formatter = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
-        SimpleDateFormat day = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        Date t = null;
-        String format = "";
-        try {
-            t = formatter.parse(strDateTime);
-            format = day.format(t);
-            t = day.parse(format);
-            datekey = t.getTime();
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        return datekey;
-    }
-    private static long getDayLong(long time) {
-        SimpleDateFormat hour = new SimpleDateFormat("yyyy-MM-dd");
-        long day =0l;
-        try {
-            String format = hour.format(time*1000);
-            Date date = new Date(time * 1000);
-
-            Date parse = hour.parse(format);
-            day = parse.getTime() / 1000;
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        return day;
     }
 
 
