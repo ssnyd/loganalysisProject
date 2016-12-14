@@ -218,7 +218,7 @@ public class EUPV2hour {
             public Integer call(Integer v1, Integer v2) throws Exception {
                 return v1 + v2;
             }
-        }, 100);
+        });
         rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
             @Override
             public void call(Iterator<Tuple2<String, Integer>> tuple2Iterator) throws Exception {
@@ -242,8 +242,6 @@ public class EUPV2hour {
                         jdbcUtils.closeConnection(conn);
                     }
                 }
-
-
             }
         });
     }
@@ -280,15 +278,12 @@ public class EUPV2hour {
 
     //过滤数据
     private static JavaRDD<String> filter2empty(JavaRDD<String> filter) {
-        filter.filter(new Function<String, Boolean>() {
+        return filter.filter(new Function<String, Boolean>() {
             @Override
             public Boolean call(String s) throws Exception {
                 String[] str = s.split("\t");
                 return str.length == 27 && str[23].split(":").length == 2 && str[26].split(":").length == 2;
             }
         });
-
-
-        return null;
     }
 }
