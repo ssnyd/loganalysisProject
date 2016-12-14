@@ -1,5 +1,6 @@
 package com.yonyou.timingSpark.enterprise;
 
+import com.yonyou.dao.IEUVStatDAO;
 import com.yonyou.dao.IEVStatDAO;
 import com.yonyou.dao.factory.DAOFactory;
 import com.yonyou.entity.enterprise.EUPV;
@@ -33,7 +34,7 @@ import java.util.List;
 /**
  * Created by chenxiaolei on 16/12/13.
  */
-public class EV2hour {
+public class EUPV2hour {
     public static void main(String[] args) {
         SparkConf sconf = new SparkConf()
                 .setAppName("ev2hour")
@@ -84,11 +85,56 @@ public class EV2hour {
             calculateEVSta(map2line);
             //计算EUV
             calculateEUVSta(map2line);
+            //计算EPV
+            calculateEPVSta(map2line);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+    //计算epv 时间戳 企业ID memID
+    private static void calculateEPVSta(JavaRDD<String> map2line) {
+        map2line.mapToPair(new PairFunction<String, String, Integer>() {
+            @Override
+            public Tuple2<String, Integer> call(String s) throws Exception {
+                String[] strings = s.split("&");
+                return new Tuple2<String, Integer>(strings[0]+"&"+strings[1],1);
+            }
+        }).reduceByKey(new Function2<Integer, Integer, Integer>() {
+            @Override
+            public Integer call(Integer v1, Integer v2) throws Exception {
+
+                return v1+v2;
+            }
+        }).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
+            @Override
+            public void call(Iterator<Tuple2<String, Integer>> iterator) throws Exception {
+                List<EUPV> eupvStats = new ArrayList<EUPV>();
+                while (iterator.hasNext()) {
+                    EUPV eupvStat = new EUPV();
+                    Tuple2<String, Integer> tuple2 = iterator.next();
+                    eupvStat.setType("hour");
+                    eupvStat.setCreated(tuple2._1.split("&")[0]);
+                    eupvStat.setInstanceId(tuple2._1.split("&")[1]);
+                    eupvStat.setEpvNum(tuple2._2);
+                    eupvStats.add(eupvStat);
+                }
+                if (eupvStats.size() > 0) {
+                    JDBCUtils jdbcUtils = JDBCUtils.getInstance();
+                    Connection conn = jdbcUtils.getConnection();
+
+                    System.out.println("mysql 2 epvstat hour==> " + eupvStats.size());
+                    eupvStats.clear();
+                    if (conn != null) {
+                        jdbcUtils.closeConnection(conn);
+                    }
+                }
+            }
+        });
+
+
+    }
+
     //计算EUV  时间戳 企业ID memID
     private static void calculateEUVSta(JavaRDD<String> map2line) {
         map2line.mapToPair(new PairFunction<String, String, String>() {
@@ -126,8 +172,9 @@ public class EV2hour {
                 if (eupvStats.size() > 0) {
                     JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                     Connection conn = jdbcUtils.getConnection();
-
-                    System.out.println("mysql 2 uvstat hour==> " + eupvStats.size());
+                    IEUVStatDAO euvStatDAO = DAOFactory.getEUVStatDAO();
+                    euvStatDAO.updataBatch(eupvStats,conn);
+                    System.out.println("mysql 2 euvstat hour==> " + eupvStats.size());
                     eupvStats.clear();
                     if (conn != null) {
                         jdbcUtils.closeConnection(conn);

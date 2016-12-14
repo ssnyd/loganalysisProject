@@ -71,5 +71,14 @@ public class DAOFactory {
     public static IEUVStatDAO getEUVStatDAO() {
         return new EUVStatDAOImpl();
     }
+    /**
+     * epv实时接口
+     *
+     * @return
+     *
+     */
+    public static IEPVStatDAO getEPVStatDAO() {
+        return new EPVStatDAOImpl();
+    }
 }
 
