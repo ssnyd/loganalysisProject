@@ -63,33 +63,33 @@ public class ESNStreaming2Hbase {
         SparkConf conf = new SparkConf()
                 .setAppName("ESNStreaming2Hbase")
                 //add by song 2016.12.05 调优
-                .set("spark.default.parallelism", "150")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
-                .set("spark.streaming.unpersist", "true")//默认是true，更智能地去持久化（unpersist）RDD,PS:清除已经持久化的RDD数据,1.4之前用spark.cleaner.ttl，之后被废弃，现在用spark.streaming.unpersist
+                //.set("spark.default.parallelism", "150")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
+                //.set("spark.streaming.unpersist", "true")//默认是true，更智能地去持久化（unpersist）RDD,PS:清除已经持久化的RDD数据,1.4之前用spark.cleaner.ttl，之后被废弃，现在用spark.streaming.unpersist
 //                .set("spark.memory.useLegacyMode", "true")//内存模型使用spark1.5版本的老版本的内存模型，这样memoryFraction/memoryFraction才能生效！！！
 //                .set("spark.storage.memoryFraction", "0.5")//留给cache做缓存或持久化用的内存的比例是多少，默认是0.6
-//                .set("spark.shuffle.memoryFraction", "0.3")//留给shuffle的内存是多少，默认是0.2，因为shuffle有可能排序或者一些操作，多给点内存比例会快一点
-                .set("spark.locality.wait", "100ms")
-                .set("spark.shuffle.manager", "hash")//使用hash的shufflemanager
-                .set("spark.shuffle.consolidateFiles", "true")//shufflemap端开启合并较小落地文件（hashshufflemanager方式一个task对应一个文件，开启合并，reduce端有几个就是固定几个文件，提前分配好省着merge了）
-                .set("spark.shuffle.file.buffer", "128")//shufflemap端mini环形缓冲区bucket的大小调大一倍，默认32KB
-                .set("spark.reducer.maxSizeInFlight", "96")//从shufflemap端拉取数据24，默认48M
-                .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
-                .set("spark.shuffle.io.maxRetries", "10")//GC重试次数，默认3
-                .set("spark.shuffle.io.retryWait", "30s")//GC等待时长，默认5s
-                .set("spark.streaming.stopGracefullyOnShutdown", "true")//优雅
-                .set("spark.streaming.blockInterval", "100")//一個blockInterval对应一个task(direct方式没用)
-                .set("spark.streaming.kafka.maxRatePerPartition", "10000")//限制消息消费的速率
-                .set("spark.streaming.backpressure.enabled", "true");//Spark Streaming从v1.5开始引入反压机制（back-pressure）,通过动态控制数据接收速率来适配集群数据处理能力。
+////                .set("spark.shuffle.memoryFraction", "0.3")//留给shuffle的内存是多少，默认是0.2，因为shuffle有可能排序或者一些操作，多给点内存比例会快一点
+//                .set("spark.locality.wait", "100ms")
+//                .set("spark.shuffle.manager", "hash")//使用hash的shufflemanager
+//                .set("spark.shuffle.consolidateFiles", "true")//shufflemap端开启合并较小落地文件（hashshufflemanager方式一个task对应一个文件，开启合并，reduce端有几个就是固定几个文件，提前分配好省着merge了）
+//                .set("spark.shuffle.file.buffer", "128")//shufflemap端mini环形缓冲区bucket的大小调大一倍，默认32KB
+//                .set("spark.reducer.maxSizeInFlight", "96")//从shufflemap端拉取数据24，默认48M
+//                .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
+//                .set("spark.shuffle.io.maxRetries", "10")//GC重试次数，默认3
+//                .set("spark.shuffle.io.retryWait", "30s")//GC等待时长，默认5s
+//                .set("spark.streaming.stopGracefullyOnShutdown", "true")//优雅
+//                .set("spark.streaming.blockInterval", "100")//一個blockInterval对应一个task(direct方式没用)
+//                .set("spark.streaming.kafka.maxRatePerPartition", "10000")//限制消息消费的速率
+//                .set("spark.streaming.backpressure.enabled", "true");//Spark Streaming从v1.5开始引入反压机制（back-pressure）,通过动态控制数据接收速率来适配集群数据处理能力。
 //				.set("spark.speculation","true");//解决纠结的任务，跟mapreduce处理方案一样啊
-        //conf.setMaster("local[2]");//本地测试
+                //conf.setMaster("local[2]");//本地测试
 
-        //batch_interval根据my.properties中的参数设置：ESNStreaming2Hbase.time=5
-        //.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        //.set("spark.streaming.blockInterval", "200")//ms→RDD
-        //.set("spark.streaming.unpersist", "true")
-        //.set("spark.shuffle.io.maxRetries", "60")
-        //.set("spark.shuffle.io.retryWait", "60s")
-        //.set("spark.reducer.maxSizeInFlight", "24");
+                //batch_interval根据my.properties中的参数设置：ESNStreaming2Hbase.time=5
+                .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+                .set("spark.streaming.blockInterval", "200")//ms→RDD
+                .set("spark.streaming.unpersist", "true")
+                .set("spark.shuffle.io.maxRetries", "60")
+                .set("spark.shuffle.io.retryWait", "60s")
+                .set("spark.reducer.maxSizeInFlight", "24");
 //      conf.setMaster("local[2]");//本地测试
         JavaStreamingContext jssc = new JavaStreamingContext(
                 conf, Durations.seconds(Integer.parseInt(ConfigurationManager.getProperty(Constants.ESNSTREAMING2HBASE_TIME))));

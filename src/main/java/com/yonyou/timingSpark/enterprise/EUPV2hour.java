@@ -1,5 +1,6 @@
 package com.yonyou.timingSpark.enterprise;
 
+import com.yonyou.dao.IEPVStatDAO;
 import com.yonyou.dao.IEUVStatDAO;
 import com.yonyou.dao.IEVStatDAO;
 import com.yonyou.dao.factory.DAOFactory;
@@ -39,7 +40,7 @@ public class EUPV2hour {
         SparkConf sconf = new SparkConf()
                 .setAppName("ev2hour")
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
-//      sconf.setMaster("local[2]");
+      //sconf.setMaster("local[2]");
         JavaSparkContext sc = new JavaSparkContext(sconf);
         Configuration conf = HBaseConfiguration.create();
         Scan scan = new Scan();
@@ -122,7 +123,8 @@ public class EUPV2hour {
                 if (eupvStats.size() > 0) {
                     JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                     Connection conn = jdbcUtils.getConnection();
-
+                    IEPVStatDAO epvStatDAO = DAOFactory.getEPVStatDAO();
+                    epvStatDAO.updataBatch(eupvStats,conn);
                     System.out.println("mysql 2 epvstat hour==> " + eupvStats.size());
                     eupvStats.clear();
                     if (conn != null) {
@@ -236,7 +238,7 @@ public class EUPV2hour {
                     Connection conn = jdbcUtils.getConnection();
                     IEVStatDAO evStatDAO = DAOFactory.getEVStatDAO();
                     evStatDAO.updataBatch(evStats, conn);
-                    System.out.println("mysql 2 uvstat hour==> " + evStats.size());
+                    System.out.println("mysql 2 evstat hour==> " + evStats.size());
                     evStats.clear();
                     if (conn != null) {
                         jdbcUtils.closeConnection(conn);

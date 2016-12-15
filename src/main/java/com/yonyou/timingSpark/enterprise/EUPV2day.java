@@ -1,5 +1,6 @@
 package com.yonyou.timingSpark.enterprise;
 
+import com.yonyou.dao.IEPVStatDAO;
 import com.yonyou.dao.IEUVStatDAO;
 import com.yonyou.dao.IEVStatDAO;
 import com.yonyou.dao.factory.DAOFactory;
@@ -37,16 +38,17 @@ import java.util.List;
 public class EUPV2day {
     public static void main(String[] args) {
         SparkConf sconf = new SparkConf()
-                .setAppName("ev2hour")
+                .setAppName("ev2day")
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
-//      sconf.setMaster("local[2]");
+      //sconf.setMaster("local[2]");
         JavaSparkContext sc = new JavaSparkContext(sconf);
         Configuration conf = HBaseConfiguration.create();
         Scan scan = new Scan();
         scan.addFamily(Bytes.toBytes("accesslog"));
         scan.addColumn(Bytes.toBytes("accesslog"), Bytes.toBytes("info"));
-        scan.setStartRow(Bytes.toBytes(DateUtils.getYesterdayDate() + ":#"));
-        scan.setStopRow(Bytes.toBytes(DateUtils.getYesterdayDate() + "::"));
+            scan.setStartRow(Bytes.toBytes(DateUtils.getYesterdayDate() + ":#"));
+            scan.setStopRow(Bytes.toBytes(DateUtils.getYesterdayDate() + "::"));
+
         //scan.setStartRow(Bytes.toBytes(DateUtils.getlasthourDate() + ":#"));
         //scan.setStopRow(Bytes.toBytes(DateUtils.getlasthourDate() + "::"));
 
@@ -114,7 +116,7 @@ public class EUPV2day {
                 while (iterator.hasNext()) {
                     EUPV eupvStat = new EUPV();
                     Tuple2<String, Integer> tuple2 = iterator.next();
-                    eupvStat.setType("hour");
+                    eupvStat.setType("day");
                     eupvStat.setCreated(tuple2._1.split("&")[0]);
                     eupvStat.setInstanceId(tuple2._1.split("&")[1]);
                     eupvStat.setEpvNum(tuple2._2);
@@ -123,8 +125,9 @@ public class EUPV2day {
                 if (eupvStats.size() > 0) {
                     JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                     Connection conn = jdbcUtils.getConnection();
-
-                    System.out.println("mysql 2 epvstat hour==> " + eupvStats.size());
+                    IEPVStatDAO epvStatDAO = DAOFactory.getEPVStatDAO();
+                    epvStatDAO.updataBatch(eupvStats,conn);
+                    System.out.println("mysql 2 epvstat day==> " + eupvStats.size());
                     eupvStats.clear();
                     if (conn != null) {
                         jdbcUtils.closeConnection(conn);
@@ -164,7 +167,7 @@ public class EUPV2day {
                 while (iterator.hasNext()) {
                     EUPV eupvStat = new EUPV();
                     Tuple2<String, Integer> tuple2 = iterator.next();
-                    eupvStat.setType("hour");
+                    eupvStat.setType("day");
                     eupvStat.setCreated(tuple2._1.split("&")[0]);
                     eupvStat.setInstanceId(tuple2._1.split("&")[1]);
                     eupvStat.setEuvNum(tuple2._2);
@@ -175,7 +178,7 @@ public class EUPV2day {
                     Connection conn = jdbcUtils.getConnection();
                     IEUVStatDAO euvStatDAO = DAOFactory.getEUVStatDAO();
                     euvStatDAO.updataBatch(eupvStats, conn);
-                    System.out.println("mysql 2 euvstat hour==> " + eupvStats.size());
+                    System.out.println("mysql 2 euvstat day==> " + eupvStats.size());
                     eupvStats.clear();
                     if (conn != null) {
                         jdbcUtils.closeConnection(conn);
@@ -235,7 +238,7 @@ public class EUPV2day {
                     Connection conn = jdbcUtils.getConnection();
                     IEVStatDAO evStatDAO = DAOFactory.getEVStatDAO();
                     evStatDAO.updataBatch(evStats, conn);
-                    System.out.println("mysql 2 uvstat day==> " + evStats.size());
+                    System.out.println("mysql 2 euvstat day==> " + evStats.size());
                     evStats.clear();
                     if (conn != null) {
                         jdbcUtils.closeConnection(conn);
