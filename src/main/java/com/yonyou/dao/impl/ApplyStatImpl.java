@@ -68,6 +68,13 @@ public class ApplyStatImpl implements IApplyStatDAO {
                 + "WHERE created=? "
                 + "AND rpAppId=? "
                 + "AND action=? ";
+        }else if (num == 3){
+            insertSQL = "INSERT INTO rp_app_action_num(created,rpAppId,action,num) VALUES(?,?,?,?)";
+            updateSQL = "UPDATE rp_app_action_num set "
+                    + "num=? "
+                    + "WHERE created=? "
+                    + "AND rpAppId=? "
+                    + "AND action=? ";
         }
 
         List<Object[]> insertParamsList = new ArrayList<Object[]>();

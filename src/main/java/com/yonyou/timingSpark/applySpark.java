@@ -31,10 +31,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by ChenXiaoLei on 2016/11/25.
@@ -52,8 +49,8 @@ public class applySpark {
         scan.addColumn(Bytes.toBytes("app_case"), Bytes.toBytes("log"));
 //      scan.setStartRow(Bytes.toBytes(getTimes("2016:11:28")+":#"));
 //      scan.setStopRow(Bytes.toBytes(getTimes("2016:11:28")+"::"));
-        scan.setStartRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate())+":#"));
-        scan.setStopRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate())+"::"));
+        scan.setStartRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + ":#"));
+        scan.setStopRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + "::"));
 
         try {
             final String tableName = "esn_datacollection";
@@ -62,7 +59,7 @@ public class applySpark {
             String ScanToString = Base64.encodeBytes(proto.toByteArray());
             conf.set(TableInputFormat.SCAN, ScanToString);
             JavaPairRDD<ImmutableBytesWritable, Result> myRDD =
-                    sc.newAPIHadoopRDD(conf,  TableInputFormat.class,
+                    sc.newAPIHadoopRDD(conf, TableInputFormat.class,
                             ImmutableBytesWritable.class, Result.class).repartition(200);
             //读取的每一行数据
             JavaRDD<String> filterRDD = myRDD.map(new Function<Tuple2<ImmutableBytesWritable, Result>, String>() {
@@ -98,7 +95,7 @@ public class applySpark {
             JavaRDD<String> openIdRDD = filterRDD.filter(new Function<String, Boolean>() {
                 @Override
                 public Boolean call(String line) throws Exception {
-                    return line.split("&").length > 2 && line.split("&")[1].split(":").length==2;
+                    return line.split("&").length > 2 && line.split("&")[1].split(":").length == 2;
                 }
             }).mapPartitions(new FlatMapFunction<Iterator<String>, String>() {
                 @Override
@@ -109,8 +106,13 @@ public class applySpark {
                     while (iterator.hasNext()) {
                         line = iterator.next();
                         app_id = line.split("&")[1].split(":")[1];
-                        String opid = JSONUtil.getopenId(HttpReqUtil.getResult("app/info/" + app_id, ""));
-                        line = opid + "&" + line;
+                        if (app_id.contains("-")) {
+                            String[] str = line.split("&");
+                            line = "open_appid:"+app_id + "&" + "name:empty" + "&" + str[0] + "&" + "app_id:0" + "&" + str[2] + "&" + str[3] + "&" + str[4] + "&" + str[5];
+                        } else {
+                            String opid = JSONUtil.getopenId(HttpReqUtil.getResult("app/info/" + app_id, ""));
+                            line = opid + "&" + line;
+                        }
                         //open_appid:110&name:协同日程新&action:view&app_id:22239&instance_id:3219&qz_id:3968&member_id:3469&mtime:1480044831884
                         list.add(line);
                     }
@@ -120,9 +122,27 @@ public class applySpark {
                 @Override
                 public Boolean call(String s) throws Exception {
 
-                    return s.split("&")[1].split(":").length ==2 && s.split("&")[0].split(":").length ==2;
+                    return s.split("&")[1].split(":").length == 2 && s.split("&")[0].split(":").length == 2;
+                }
+            }).mapPartitions(new FlatMapFunction<Iterator<String>, String>() {
+                @Override
+                public Iterable<String> call(Iterator<String> iterator) throws Exception {
+                    List list = new ArrayList();
+                    String app_id = null;
+                    String line = null;
+                    while (iterator.hasNext()) {
+                        line = iterator.next();
+                        String[] str = line.split("&");
+                        if (!"0".equals(str[0].split(":")[1])) {
+                            app_id = "app_id:0";
+                            line = str[0] + "&" + str[1] + "&" + str[2] + "&" + app_id + "&" + str[4] + "&" + str[5] + "&" + str[6] + "&" + str[7];
+                        }
+                        list.add(line);
+                    }
+                    return list;
                 }
             });
+
             //获得rpid 通过mysql获得
             JavaRDD<String> reipRDD = openIdRDD.mapPartitions(new FlatMapFunction<Iterator<String>, String>() {
                 @Override
@@ -195,6 +215,56 @@ public class applySpark {
                 }
             });
             finshRDD = finshRDD.persist(StorageLevel.MEMORY_AND_DISK_SER());
+            //num
+            JavaPairRDD<String, Integer> numrdd = finshRDD.mapToPair(new PairFunction<Tuple2<String, String>, String, Integer>() {
+                @Override
+                public Tuple2<String, Integer> call(Tuple2<String, String> tuple2) throws Exception {
+                    return new Tuple2<String, Integer>(tuple2._1, 1);
+                }
+            }).reduceByKey(new Function2<Integer, Integer, Integer>() {
+                @Override
+                public Integer call(Integer v1, Integer v2) throws Exception {
+                    return v1 + v2;
+                }
+            });
+
+            //666666666666666
+            //Map<String, Object> numMap = finshRDD.countByKey();
+            //if (!numMap.isEmpty()){
+            //    List<applyStat> applyStats = new ArrayList<applyStat>();
+            //    for (Map.Entry<String, Object> map:numMap.entrySet()){
+            //        applyStat applyStat = new applyStat();
+            //        Object value = map.getValue();
+            //        Integer category = 0;
+            //        if (value instanceof Integer){
+            //            category = (Integer)value;
+            //        }
+            //        String key = map.getKey();
+            //        String[] str = key.split("&");
+            //        String time = str[0];
+            //        String rpid = str[1];
+            //        String action = str[2];
+            //        applyStat.setAction(action);
+            //        applyStat.setCategory(category);
+            //        applyStat.setCreated(time);
+            //        applyStat.setRpid(rpid);
+            //        applyStats.add(applyStat);
+            //    }
+            //    if (applyStats.size()>0){
+            //        JDBCUtils jdbcUtils = JDBCUtils.getInstance();
+            //        Connection conn = jdbcUtils.getConnection();
+            //        IApplyStatDAO applyStatDAO = DAOFactory.getApplyStatDAO();
+            //        applyStatDAO.updataBatch(applyStats,conn,3);
+            //        System.out.println("mysql 3 applystat num==> "+applyStats.size());
+            //        applyStats.clear();
+            //        if (conn != null) {
+            //            jdbcUtils.closeConnection(conn);
+            //        }
+            //    }
+            //
+            //}
+
+
             //instanceRDD
             final JavaPairRDD<String, Integer> instanceRDD = finshRDD.mapToPair(new PairFunction<Tuple2<String, String>, String, String>() {
                 @Override
@@ -246,7 +316,8 @@ public class applySpark {
                     return v1 + v2;
                 }
             });
-             memRDD.foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
+
+            memRDD.foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
                 @Override
                 public void call(Iterator<Tuple2<String, Integer>> iterator) throws Exception {
                     List<applyStat> applyStats = new ArrayList<applyStat>();
@@ -266,12 +337,12 @@ public class applySpark {
                         applyStat.setRpid(rpid);
                         applyStats.add(applyStat);
                     }
-                    if (applyStats.size()>0){
+                    if (applyStats.size() > 0) {
                         JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                         Connection conn = jdbcUtils.getConnection();
                         IApplyStatDAO applyStatDAO = DAOFactory.getApplyStatDAO();
-                        applyStatDAO.updataBatch(applyStats,conn,2);
-                        System.out.println("mysql 2 applystat mem==> "+applyStats.size());
+                        applyStatDAO.updataBatch(applyStats, conn, 2);
+                        System.out.println("mysql 2 applystat mem==> " + applyStats.size());
                         applyStats.clear();
                         if (conn != null) {
                             jdbcUtils.closeConnection(conn);
@@ -299,12 +370,12 @@ public class applySpark {
                         applyStat.setRpid(rpid);
                         applyStats.add(applyStat);
                     }
-                    if (applyStats.size()>0){
+                    if (applyStats.size() > 0) {
                         JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                         Connection conn = jdbcUtils.getConnection();
                         IApplyStatDAO applyStatDAO = DAOFactory.getApplyStatDAO();
-                        applyStatDAO.updataBatch(applyStats,conn,1);
-                        System.out.println("mysql 2 applystat qz==> "+applyStats.size());
+                        applyStatDAO.updataBatch(applyStats, conn, 1);
+                        System.out.println("mysql 2 applystat qz==> " + applyStats.size());
                         applyStats.clear();
                         if (conn != null) {
                             jdbcUtils.closeConnection(conn);
@@ -331,12 +402,12 @@ public class applySpark {
                         applyStat.setRpid(rpid);
                         applyStats.add(applyStat);
                     }
-                    if (applyStats.size()>0){
+                    if (applyStats.size() > 0) {
                         JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                         Connection conn = jdbcUtils.getConnection();
                         IApplyStatDAO applyStatDAO = DAOFactory.getApplyStatDAO();
-                        applyStatDAO.updataBatch(applyStats,conn,0);
-                        System.out.println("mysql 2 applystat instance==> "+applyStats.size());
+                        applyStatDAO.updataBatch(applyStats, conn, 0);
+                        System.out.println("mysql 2 applystat instance==> " + applyStats.size());
                         applyStats.clear();
                         if (conn != null) {
                             jdbcUtils.closeConnection(conn);
@@ -344,13 +415,47 @@ public class applySpark {
                     }
                 }
             });
-        }
-        catch (Exception e) {
+            numrdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
+                @Override
+                public void call(Iterator<Tuple2<String, Integer>> iterator) throws Exception {
+                    List<applyStat> applyStats = new ArrayList<applyStat>();
+                    Tuple2<String, Integer> tuple = null;
+                    while (iterator.hasNext()) {
+                        tuple = iterator.next();
+                        String[] str = tuple._1.split("&");
+                        String time = str[0];
+                        String rpid = str[1];
+                        String action = str[2];
+                        System.out.print("");
+                        Integer category = tuple._2;
+                        applyStat applyStat = new applyStat();
+                        applyStat.setAction(action);
+                        applyStat.setCategory(category);
+                        applyStat.setCreated(time);
+                        applyStat.setRpid(rpid);
+                        applyStats.add(applyStat);
+                    }
+                    if (applyStats.size() > 0) {
+                        JDBCUtils jdbcUtils = JDBCUtils.getInstance();
+                        Connection conn = jdbcUtils.getConnection();
+                        IApplyStatDAO applyStatDAO = DAOFactory.getApplyStatDAO();
+                        applyStatDAO.updataBatch(applyStats, conn, 3);
+                        System.out.println("mysql 3 applystat num==> " + applyStats.size());
+                        applyStats.clear();
+                        if (conn != null) {
+                            jdbcUtils.closeConnection(conn);
+                        }
+                    }
+                }
+            });
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
     /**
      * 获得当天时间戳 hbase rowkey
+     *
      * @param date
      * @return
      */
@@ -366,16 +471,17 @@ public class applySpark {
         }
         return l;
     }
-    private static long getDays(String times){
-        SimpleDateFormat format =  new SimpleDateFormat("yyyy-MM-dd");
-        Date date= null;
+
+    private static long getDays(String times) {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+        Date date = null;
         try {
-            Long time=Long.parseLong(times);
+            Long time = Long.parseLong(times);
             String d = format.format(time);
             date = format.parse(d);
         } catch (ParseException e) {
             e.printStackTrace();
         }
-        return date.getTime()/1000;
+        return date.getTime() / 1000;
     }
 }
