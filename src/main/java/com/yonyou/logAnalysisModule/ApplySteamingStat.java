@@ -5,46 +5,37 @@ import com.yonyou.constant.Constants;
 import com.yonyou.utils.DateUtils;
 import com.yonyou.utils.JedisPoolUtils;
 import com.yonyou.utils.SparkUtils;
-import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.streaming.Durations;
-import org.apache.spark.streaming.api.java.JavaStreamingContext;
-import org.apache.spark.streaming.api.java.JavaStreamingContextFactory;
-
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import com.google.common.collect.ImmutableMap;
-import kafka.api.PartitionOffsetRequestInfo;
-import kafka.cluster.Broker;
 import kafka.common.TopicAndPartition;
-import kafka.javaapi.*;
-import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.message.MessageAndMetadata;
+import kafka.serializer.StringDecoder;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.RetryUntilElapsed;
 import org.apache.htrace.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.*;
+import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.Durations;
-import org.apache.spark.streaming.api.java.*;
+import org.apache.spark.streaming.api.java.JavaDStream;
+import org.apache.spark.streaming.api.java.JavaInputDStream;
+import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.api.java.JavaStreamingContextFactory;
 import org.apache.spark.streaming.kafka.HasOffsetRanges;
 import org.apache.spark.streaming.kafka.KafkaUtils;
-import kafka.serializer.StringDecoder;
 import org.apache.spark.streaming.kafka.OffsetRange;
 import redis.clients.jedis.Jedis;
 import scala.Tuple2;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 /**
+ * 已经不用了
  * Created by ChenXiaoLei on 2016/11/18.
  */
 public class ApplySteamingStat {

@@ -5,7 +5,6 @@ import com.yonyou.conf.ConfigurationManager;
 import com.yonyou.constant.Constants;
 import com.yonyou.hbaseUtil.HbaseConnectionFactory;
 import com.yonyou.utils.DateUtils;
-import com.yonyou.utils.JedisPoolUtils;
 import com.yonyou.utils.SparkUtils;
 import kafka.common.TopicAndPartition;
 import kafka.message.MessageAndMetadata;
@@ -20,7 +19,9 @@ import org.apache.htrace.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.*;
+import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
@@ -29,15 +30,13 @@ import org.apache.spark.streaming.api.java.JavaStreamingContextFactory;
 import org.apache.spark.streaming.kafka.HasOffsetRanges;
 import org.apache.spark.streaming.kafka.KafkaUtils;
 import org.apache.spark.streaming.kafka.OffsetRange;
-import redis.clients.jedis.Jedis;
 import scala.Tuple2;
 
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
+ * 应用收集
  * Created by ChenXiaoLei on 2016/11/21.
  */
 public class DataCollectionStat {

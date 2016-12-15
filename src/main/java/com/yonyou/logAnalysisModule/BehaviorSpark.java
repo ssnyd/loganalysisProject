@@ -3,9 +3,7 @@ package com.yonyou.logAnalysisModule;
 import com.yonyou.conf.ConfigurationManager;
 import com.yonyou.constant.Constants;
 import com.yonyou.hbaseUtil.HbaseConnectionFactory;
-import com.yonyou.utils.DateUtils;
 import com.yonyou.utils.JSONUtil;
-import com.yonyou.utils.JedisPoolUtils;
 import com.yonyou.utils.SparkUtils;
 import kafka.common.TopicAndPartition;
 import kafka.message.MessageAndMetadata;
@@ -21,7 +19,6 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.Durations;
@@ -32,17 +29,15 @@ import org.apache.spark.streaming.api.java.JavaStreamingContextFactory;
 import org.apache.spark.streaming.kafka.HasOffsetRanges;
 import org.apache.spark.streaming.kafka.KafkaUtils;
 import org.apache.spark.streaming.kafka.OffsetRange;
-import redis.clients.jedis.Jedis;
 import scala.Tuple2;
 
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
+ * 用户行为
  * Created by chenxiaolei on 16/11/29.
  */
 public class BehaviorSpark {

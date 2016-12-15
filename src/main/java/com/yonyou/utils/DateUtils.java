@@ -215,7 +215,6 @@ public class DateUtils {
         return sdf.format(date);
     }
 
-
     public static String getTime(String timestamp) {
         String strDateTime = timestamp.replace("[", "").replace("]", "");
         long datekey = 0l;
