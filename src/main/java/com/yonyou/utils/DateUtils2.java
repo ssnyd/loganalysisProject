@@ -64,5 +64,18 @@ public class DateUtils2 {
         }
         return day;
     }
+    public static String getDayTime(String timestamp) {
+        String strDateTime = timestamp.replace("[", "").replace("]", "");
+        SimpleDateFormat formatter = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
+        SimpleDateFormat hour = new SimpleDateFormat("yyyy:MM:dd:HH");
+        Date parse = null;
+        try {
+            parse = formatter.parse(strDateTime);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        return hour.format(parse);
+    }
 
 }

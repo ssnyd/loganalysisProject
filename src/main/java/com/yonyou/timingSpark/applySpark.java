@@ -49,8 +49,13 @@ public class applySpark {
         scan.addColumn(Bytes.toBytes("app_case"), Bytes.toBytes("log"));
 //      scan.setStartRow(Bytes.toBytes(getTimes("2016:11:28")+":#"));
 //      scan.setStopRow(Bytes.toBytes(getTimes("2016:11:28")+"::"));
-        scan.setStartRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + ":#"));
-        scan.setStopRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + "::"));
+        if (args.length==2){
+            scan.setStartRow(Bytes.toBytes(getTimes(args[0]) + ":#"));
+            scan.setStopRow(Bytes.toBytes(getTimes(args[1]) + "::"));
+        }else {
+            scan.setStartRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + ":#"));
+            scan.setStopRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + "::"));
+        }
 
         try {
             final String tableName = "esn_datacollection";
@@ -90,7 +95,7 @@ public class applySpark {
                     return list;
                 }
             });
-            filterRDD = filterRDD.persist(StorageLevel.MEMORY_AND_DISK_SER());
+
             //获得openid
             JavaRDD<String> openIdRDD = filterRDD.filter(new Function<String, Boolean>() {
                 @Override
