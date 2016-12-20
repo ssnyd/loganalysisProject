@@ -1,7 +1,5 @@
 package com.yonyou.utils;
 
-import com.alibaba.fastjson.JSONObject;
-
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -204,6 +202,27 @@ public class DateUtils {
         }
         return null;
     }
+    /**
+     * 格式化日期key
+     *
+     * @param
+     * @return
+     */
+    public static String parseDate(String datekey) {
+        Calendar c = Calendar.getInstance();
+        Date date=null;
+        try {
+            date = DATE_FORMAT.parse(datekey);
+            c.setTime(date);
+            int day=c.get(Calendar.DATE);
+            c.set(Calendar.DATE,day+1);
+            DATE_FORMAT.format(c.getTime());
+            return DATE_FORMAT.format(c.getTime());
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     /**
      * 格式化时间，保留到分钟级别
@@ -301,14 +320,17 @@ public class DateUtils {
     }
     public static void main(String[] args)
     {
-        JSONObject jsonObject = JSONObject.parseObject("{\"action\":\"view\",\"app_id\":\"22239\",\"client\":\"android\",\"client_ip\":\"123.1.4.5\",\"device_model\":\"SM-G9250\",\"device_name\":\"三星\",\"instance_id\":\"4785\",\"member_id\":\"3469\",\"mtime\":\"1482134768290\",\"object_id\":\"123456789\",\"qz_id\":\"74269\",\"user_id\":\"0\",\"ver_code\":\"3.0.5\"}");
-        JSONObject s = JSONObject.parseObject("{\"action\":\"view\",\"app_id\":\"99999\",\"client\":\"android\",\"client_ip\":\"123.1.4.5\",\"device_model\":\"SM-G9250\",\"device_name\":\"三星\",\"instance_id\":\"128261\",\"member_id\":\"3469\",\"mtime\":\"1482137412506\",\"object_id\":\"6123456\",\"qz_id\":\"88888\",\"user_id\":\"0\",\"ver_code\":\"3.0.5\"}");
-        Long mtime = s.getLong("mtime");
-        System.out.println(timeStamp2Date(mtime,null));
-        System.out.println(getWeekTime("2016:12:19"));
-        System.out.println(getMonthTime("2016:12:19"));
-        System.out.println(getTimestamp(getWeekTime("2016:12:19")));
-        System.out.println(getTimestamp(getMonthTime("2016:12:19")));
+        //JSONObject jsonObject = JSONObject.parseObject("{\"action\":\"view\",\"app_id\":\"22239\",\"client\":\"android\",\"client_ip\":\"123.1.4.5\",\"device_model\":\"SM-G9250\",\"device_name\":\"三星\",\"instance_id\":\"4785\",\"member_id\":\"3469\",\"mtime\":\"1482134768290\",\"object_id\":\"123456789\",\"qz_id\":\"74269\",\"user_id\":\"0\",\"ver_code\":\"3.0.5\"}");
+        //JSONObject s = JSONObject.parseObject("{\"action\":\"view\",\"app_id\":\"99999\",\"client\":\"android\",\"client_ip\":\"123.1.4.5\",\"device_model\":\"SM-G9250\",\"device_name\":\"三星\",\"instance_id\":\"128261\",\"member_id\":\"3469\",\"mtime\":\"1482137412506\",\"object_id\":\"6123456\",\"qz_id\":\"88888\",\"user_id\":\"0\",\"ver_code\":\"3.0.5\"}");
+        //Long mtime = s.getLong("mtime");
+        //System.out.println(timeStamp2Date(mtime,null));
+        //System.out.println(getWeekTime("2016:12:19"));
+        //System.out.println(getMonthTime("2016:12:19"));
+        //System.out.println(getTimestamp(getWeekTime("2016:12:19")));
+        //System.out.println(getTimestamp(getMonthTime("2016:12:19")));
+        System.out.println(parseDate("2016:11:30"));
+        System.out.println(getTimestamp(parseDate("2016:11:30")));
+        System.out.println(getTodayDate());
 
     }
 }

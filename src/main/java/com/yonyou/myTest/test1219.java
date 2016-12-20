@@ -1,5 +1,7 @@
 package com.yonyou.myTest;
 
+import com.yonyou.utils.DateUtils;
+
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -38,11 +40,16 @@ public class test1219 {
         System.out.println("-----1------firstDay:" + firstDay);
 
 
+        System.out.println(getKey(new String[]{}));
 
 
 
-
-
-
+    }
+    private static String getKey(String[] s1) {
+        if (s1.length == 2) {
+            return DateUtils.parseDate(s1[0]);
+        } else {
+            return DateUtils.getTodayDate();
+        }
     }
 }

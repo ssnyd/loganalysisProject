@@ -33,6 +33,7 @@ import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
 /**
  * Created by ChenXiaoLei on 2016/11/28.
  */
@@ -49,8 +50,8 @@ public class UVIPV2hour {
         scan.addColumn(Bytes.toBytes("accesslog"), Bytes.toBytes("info"));
 //      scan.setStartRow(Bytes.toBytes("2016:10:23:#"));
 //      scan.setStopRow(Bytes.toBytes("2016:10:31::"));
-        scan.setStartRow(Bytes.toBytes(DateUtils.getlasthourDate()+":#"));
-        scan.setStopRow(Bytes.toBytes(DateUtils.getlasthourDate()+"::"));
+        scan.setStartRow(Bytes.toBytes(DateUtils.getlasthourDate() + ":#"));
+        scan.setStopRow(Bytes.toBytes(DateUtils.getlasthourDate() + "::"));
 
         try {
             String tableName = "esn_accesslog";
@@ -59,7 +60,7 @@ public class UVIPV2hour {
             String ScanToString = Base64.encodeBytes(proto.toByteArray());
             conf.set(TableInputFormat.SCAN, ScanToString);
             JavaPairRDD<ImmutableBytesWritable, Result> myRDD =
-                    sc.newAPIHadoopRDD(conf,  TableInputFormat.class,
+                    sc.newAPIHadoopRDD(conf, TableInputFormat.class,
                             ImmutableBytesWritable.class, Result.class);
             //读取的每一行数据
             JavaRDD<String> filter = myRDD.map(new Function<Tuple2<ImmutableBytesWritable, Result>, String>() {
@@ -81,14 +82,14 @@ public class UVIPV2hour {
             filter = filter.persist(StorageLevel.MEMORY_AND_DISK_SER());
             JavaPairRDD<String, Integer> totaluvRdd = calculateUVSta(filter);
             JavaPairRDD<String, String> totalipvRdd = calculateIPVSta(filter);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
 
-}
-    private static JavaPairRDD<String, Integer> calculateUVSta(JavaRDD<String> line){
+    }
+
+    private static JavaPairRDD<String, Integer> calculateUVSta(JavaRDD<String> line) {
         JavaPairRDD<String, Integer> totalRDD = line.filter(new Function<String, Boolean>() {
             @Override
             public Boolean call(String v1) throws Exception {
@@ -114,7 +115,7 @@ public class UVIPV2hour {
         JavaPairRDD<String, Integer> hourRDD = totalRDD.distinct().mapToPair(new PairFunction<Tuple2<String, Integer>, String, Integer>() {
             @Override
             public Tuple2<String, Integer> call(Tuple2<String, Integer> tuple2) throws Exception {
-                return new Tuple2<String, Integer>(tuple2._1.split("&")[0]+"1hour", 1);
+                return new Tuple2<String, Integer>(tuple2._1.split("&")[0] + "1hour", 1);
             }
         }).reduceByKey(new Function2<Integer, Integer, Integer>() {
             @Override
@@ -130,12 +131,11 @@ public class UVIPV2hour {
                 while (tuple2.hasNext()) {
                     tuple = tuple2.next();
                     String _created = tuple._1;
-                    String created = _created.substring(0,_created.length()-5);
+                    String created = _created.substring(0, _created.length() - 5);
                     String type = "1hour";
-                    if(_created.contains("1day")){
-                        created = _created.substring(0,_created.length()-4);
+                    if (_created.contains("1day")) {
+                        created = _created.substring(0, _created.length() - 4);
                         type = "1day";
-                        System.out.print("");
                     }
                     String clientType = "all";
                     Integer num = tuple._2;
@@ -146,12 +146,12 @@ public class UVIPV2hour {
                     uvStat.setNum(num);
                     uvStats.add(uvStat);
                 }
-                if (uvStats.size()>0){
+                if (uvStats.size() > 0) {
                     JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                     Connection conn = jdbcUtils.getConnection();
                     IUVStatDAO uvStatDAO = DAOFactory.getUVStatDAO();
-                    uvStatDAO.updataBatch(uvStats,conn);
-                    System.out.println("mysql 2 uvstat hour==> "+uvStats.size());
+                    uvStatDAO.updataBatch(uvStats, conn);
+                    System.out.println("mysql 2 uvstat hour==> " + uvStats.size());
                     uvStats.clear();
                     if (conn != null) {
                         jdbcUtils.closeConnection(conn);
@@ -161,7 +161,8 @@ public class UVIPV2hour {
         });
         return totalRDD;
     }
-    private static JavaPairRDD<String, String> calculateIPVSta(JavaRDD<String> line){
+
+    private static JavaPairRDD<String, String> calculateIPVSta(JavaRDD<String> line) {
         JavaPairRDD<String, String> totalRDD = line.mapToPair(new PairFunction<String, String, String>() {
             @Override
             public Tuple2<String, String> call(String log) throws Exception {
@@ -171,11 +172,10 @@ public class UVIPV2hour {
                 return new Tuple2<String, String>(timestamp + "", ip);
             }
         });
-
         JavaPairRDD<String, Integer> hourRDD = totalRDD.distinct().mapToPair(new PairFunction<Tuple2<String, String>, String, Integer>() {
             @Override
             public Tuple2<String, Integer> call(Tuple2<String, String> tuple2) throws Exception {
-                return new Tuple2<String, Integer>(tuple2._1+"hour", 1);
+                return new Tuple2<String, Integer>(tuple2._1 + "hour", 1);
             }
         }).reduceByKey(new Function2<Integer, Integer, Integer>() {
             @Override
@@ -191,12 +191,11 @@ public class UVIPV2hour {
                 while (tuple2.hasNext()) {
                     tuple = tuple2.next();
                     String _created = tuple._1;
-                    String created = _created.substring(0,_created.length()-4);
+                    String created = _created.substring(0, _created.length() - 4);
                     String type = "1hour";
-                    if(_created.contains("day")){
-                        created = _created.substring(0,_created.length()-3);
+                    if (_created.contains("day")) {
+                        created = _created.substring(0, _created.length() - 3);
                         type = "1day";
-                        System.out.print("");
                     }
                     String clientType = "all";
                     Integer num = tuple._2;
@@ -206,14 +205,13 @@ public class UVIPV2hour {
                     ipvStat.setCreated(created);
                     ipvStat.setNum(num);
                     ipvStats.add(ipvStat);
-
                 }
-                if (ipvStats.size()>0){
+                if (ipvStats.size() > 0) {
                     JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                     Connection conn = jdbcUtils.getConnection();
                     IIPVStatDAO ipvStatDAO = DAOFactory.getIPVStatDAO();
-                    ipvStatDAO.updataBatch(ipvStats,conn);
-                    System.out.println("mysql 2 ipvstat hour==> "+ipvStats.size());
+                    ipvStatDAO.updataBatch(ipvStats, conn);
+                    System.out.println("mysql 2 ipvstat hour==> " + ipvStats.size());
                     ipvStats.clear();
                     if (conn != null) {
                         jdbcUtils.closeConnection(conn);

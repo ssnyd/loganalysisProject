@@ -23,6 +23,7 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.broadcast.Broadcast;
 import scala.Tuple2;
 
 import java.sql.Connection;
@@ -48,13 +49,14 @@ public class UVWeekSpark {
         scan.addColumn(Bytes.toBytes("uv"), Bytes.toBytes("log"));
 //      scan.setStartRow(Bytes.toBytes("2016:10:23:#"));
 //      scan.setStopRow(Bytes.toBytes("2016:10:31::"));
-        if(args.length==2){
-            scan.setStartRow(Bytes.toBytes(args[0]+":#"));
-            scan.setStopRow(Bytes.toBytes(args[1]+"::"));
-        }else {
-            scan.setStartRow(Bytes.toBytes(DateUtils.getWeekTime(DateUtils.getYesterdayDate()) +":#"));
-            scan.setStopRow(Bytes.toBytes(DateUtils.getWeekTime(DateUtils.getYesterdayDate()) +"::"));
+        if (args.length == 2) {
+            scan.setStartRow(Bytes.toBytes(DateUtils.getWeekTime(args[0]) + ":#"));
+            scan.setStopRow(Bytes.toBytes(DateUtils.getWeekTime(args[1]) + "::"));
+        } else {
+            scan.setStartRow(Bytes.toBytes(DateUtils.getWeekTime(DateUtils.getYesterdayDate()) + ":#"));
+            scan.setStopRow(Bytes.toBytes(DateUtils.getWeekTime(DateUtils.getYesterdayDate()) + "::"));
         }
+        final Broadcast<String> broadcast = sc.broadcast(getKey(args));
         try {
             String tableName = "esn_week_uv";
             conf.set(TableInputFormat.INPUT_TABLE, tableName);
@@ -62,7 +64,7 @@ public class UVWeekSpark {
             String ScanToString = Base64.encodeBytes(proto.toByteArray());
             conf.set(TableInputFormat.SCAN, ScanToString);
             JavaPairRDD<ImmutableBytesWritable, Result> myRDD =
-                    sc.newAPIHadoopRDD(conf,  TableInputFormat.class,
+                    sc.newAPIHadoopRDD(conf, TableInputFormat.class,
                             ImmutableBytesWritable.class, Result.class);
             //读取的每一行数据
             JavaRDD<String> filter = myRDD.map(new Function<Tuple2<ImmutableBytesWritable, Result>, String>() {
@@ -78,20 +80,20 @@ public class UVWeekSpark {
             }).filter(new Function<String, Boolean>() {
                 @Override
                 public Boolean call(String v1) throws Exception {
-                    return v1 != null && v1.split(":").length==2;
+                    return v1 != null && v1.split(":").length == 2;
                 }
             });
             filter.mapToPair(new PairFunction<String, String, Integer>() {
                 @Override
                 public Tuple2<String, Integer> call(String s) throws Exception {
-                    return new Tuple2<String, Integer>(s.split(":")[0],1);
+                    return new Tuple2<String, Integer>(s.split(":")[0], 1);
                 }
             }).reduceByKey(new Function2<Integer, Integer, Integer>() {
                 @Override
                 public Integer call(Integer v1, Integer v2) throws Exception {
-                    return v1+v2;
+                    return v1 + v2;
                 }
-            }).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
+            }, 1).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
                 @Override
                 public void call(Iterator<Tuple2<String, Integer>> iterator) throws Exception {
                     List<UVStat> uvStats = new ArrayList<UVStat>();
@@ -105,16 +107,16 @@ public class UVWeekSpark {
                         UVStat uvStat = new UVStat();
                         uvStat.setType(type);
                         uvStat.setClientType(clientType);
-                        uvStat.setCreated(created);
+                        uvStat.setCreated(DateUtils.getTimestamp(broadcast.value()));
                         uvStat.setNum(num);
                         uvStats.add(uvStat);
                     }
-                    if (uvStats.size()>0){
+                    if (uvStats.size() > 0) {
                         JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                         Connection conn = jdbcUtils.getConnection();
                         IUVStatDAO uvStatDAO = DAOFactory.getUVStatDAO();
-                        uvStatDAO.updataBatch(uvStats,conn);
-                        System.out.println("mysql week uvstat ==> "+uvStats.size());
+                        uvStatDAO.updataBatch(uvStats, conn);
+                        System.out.println("mysql week uvstat ==> " + uvStats.size());
                         uvStats.clear();
                         if (conn != null) {
                             jdbcUtils.closeConnection(conn);
@@ -123,9 +125,16 @@ public class UVWeekSpark {
                 }
             });
 
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private static String getKey(String[] s1) {
+        if (s1.length == 2) {
+            return DateUtils.parseDate(s1[0]);
+        } else {
+            return DateUtils.getTodayDate();
         }
     }
 }

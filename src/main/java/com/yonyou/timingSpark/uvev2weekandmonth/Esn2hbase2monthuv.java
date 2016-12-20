@@ -56,7 +56,7 @@ public class Esn2hbase2monthuv {
             conf.set(TableInputFormat.SCAN, ScanToString);
             JavaPairRDD<ImmutableBytesWritable, Result> myRDD =
                     sc.newAPIHadoopRDD(conf, TableInputFormat.class,
-                            ImmutableBytesWritable.class, Result.class).repartition(200);
+                            ImmutableBytesWritable.class, Result.class);
             //读取的每一行数据
             JavaRDD<String> filter = myRDD.map(new Function<Tuple2<ImmutableBytesWritable, Result>, String>() {
                 @Override

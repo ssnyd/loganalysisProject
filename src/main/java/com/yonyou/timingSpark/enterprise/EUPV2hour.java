@@ -114,7 +114,7 @@ public class EUPV2hour {
                 while (iterator.hasNext()) {
                     EUPV eupvStat = new EUPV();
                     Tuple2<String, Integer> tuple2 = iterator.next();
-                    eupvStat.setType("hour");
+                    eupvStat.setType("1hour");
                     eupvStat.setCreated(tuple2._1.split("&")[0]);
                     eupvStat.setInstanceId(tuple2._1.split("&")[1]);
                     eupvStat.setEpvNum(tuple2._2);
@@ -165,7 +165,7 @@ public class EUPV2hour {
                 while (iterator.hasNext()) {
                     EUPV eupvStat = new EUPV();
                     Tuple2<String, Integer> tuple2 = iterator.next();
-                    eupvStat.setType("hour");
+                    eupvStat.setType("1hour");
                     eupvStat.setCreated(tuple2._1.split("&")[0]);
                     eupvStat.setInstanceId(tuple2._1.split("&")[1]);
                     eupvStat.setEuvNum(tuple2._2);
@@ -228,7 +228,7 @@ public class EUPV2hour {
                 while (tuple2Iterator.hasNext()) {
                     EVStat evStat = new EVStat();
                     Tuple2<String, Integer> tuple2 = tuple2Iterator.next();
-                    evStat.setType("hour");
+                    evStat.setType("1hour");
                     evStat.setCreated(tuple2._1);
                     evStat.setNum(tuple2._2);
                     evStats.add(evStat);

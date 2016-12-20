@@ -23,6 +23,7 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.broadcast.Broadcast;
 import scala.Tuple2;
 
 import java.sql.Connection;
@@ -46,12 +47,13 @@ public class EVWeekSpark {
         scan.addFamily(Bytes.toBytes("ev"));
         scan.addColumn(Bytes.toBytes("ev"), Bytes.toBytes("log"));
         if (args.length == 2) {
-            scan.setStartRow(Bytes.toBytes(args[0] + ":#"));
-            scan.setStopRow(Bytes.toBytes(args[1] + "::"));
+            scan.setStartRow(Bytes.toBytes(DateUtils.getWeekTime(args[0])+ ":#"));
+            scan.setStopRow(Bytes.toBytes(DateUtils.getWeekTime(args[1]) + "::"));
         } else {
             scan.setStartRow(Bytes.toBytes(DateUtils.getWeekTime(DateUtils.getYesterdayDate())+ ":#"));
             scan.setStopRow(Bytes.toBytes(DateUtils.getWeekTime(DateUtils.getYesterdayDate()) + "::"));
         }
+        final Broadcast<String> broadcast = sc.broadcast(getKey(args));
         try {
             String tableName = "esn_week_ev";
             conf.set(TableInputFormat.INPUT_TABLE, tableName);
@@ -88,7 +90,7 @@ public class EVWeekSpark {
                 public Integer call(Integer v1, Integer v2) throws Exception {
                     return v1 + v2;
                 }
-            }).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
+            },1).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
                 @Override
                 public void call(Iterator<Tuple2<String, Integer>> iterator) throws Exception {
                     List<EVStat> evStats = new ArrayList<EVStat>();
@@ -96,7 +98,7 @@ public class EVWeekSpark {
                         EVStat evStat = new EVStat();
                         Tuple2<String, Integer> tuple2 = iterator.next();
                         evStat.setType("thisweek");
-                        evStat.setCreated(tuple2._1);
+                        evStat.setCreated(DateUtils.getTimestamp(broadcast.value()));
                         evStat.setNum(tuple2._2);
                         evStats.add(evStat);
                     }
@@ -117,5 +119,11 @@ public class EVWeekSpark {
             e.printStackTrace();
         }
     }
-
+    private static String getKey(String[] s1) {
+        if (s1.length == 2) {
+            return DateUtils.parseDate(s1[0]);
+        } else {
+            return DateUtils.getTodayDate();
+        }
+    }
 }

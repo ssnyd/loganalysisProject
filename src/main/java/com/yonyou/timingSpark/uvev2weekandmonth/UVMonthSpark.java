@@ -23,6 +23,7 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.broadcast.Broadcast;
 import scala.Tuple2;
 
 import java.sql.Connection;
@@ -49,12 +50,13 @@ public class UVMonthSpark {
 //      scan.setStartRow(Bytes.toBytes("2016:10:23:#"));
 //      scan.setStopRow(Bytes.toBytes("2016:10:31::"));
         if(args.length==2){
-            scan.setStartRow(Bytes.toBytes(args[0]+":#"));
-            scan.setStopRow(Bytes.toBytes(args[1]+"::"));
+            scan.setStartRow(Bytes.toBytes(DateUtils.getMonthTime(args[0])+":#"));
+            scan.setStopRow(Bytes.toBytes(DateUtils.getMonthTime(args[1])+"::"));
         }else {
             scan.setStartRow(Bytes.toBytes(DateUtils.getMonthTime(DateUtils.getYesterdayDate())+":#"));
             scan.setStopRow(Bytes.toBytes(DateUtils.getMonthTime(DateUtils.getYesterdayDate())+"::"));
         }
+        final Broadcast<String> broadcast = sc.broadcast(getKey(args));
         try {
             String tableName = "esn_month_uv";
             conf.set(TableInputFormat.INPUT_TABLE, tableName);
@@ -91,7 +93,7 @@ public class UVMonthSpark {
                 public Integer call(Integer v1, Integer v2) throws Exception {
                     return v1+v2;
                 }
-            }).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
+            },1).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
                 @Override
                 public void call(Iterator<Tuple2<String, Integer>> iterator) throws Exception {
                     List<UVStat> uvStats = new ArrayList<UVStat>();
@@ -105,7 +107,7 @@ public class UVMonthSpark {
                         UVStat uvStat = new UVStat();
                         uvStat.setType(type);
                         uvStat.setClientType(clientType);
-                        uvStat.setCreated(created);
+                        uvStat.setCreated(DateUtils.getTimestamp(broadcast.value()));
                         uvStat.setNum(num);
                         uvStats.add(uvStat);
                     }
@@ -126,6 +128,13 @@ public class UVMonthSpark {
         }
         catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+    private static String getKey(String[] s1) {
+        if (s1.length == 2) {
+            return DateUtils.parseDate(s1[0]);
+        } else {
+            return DateUtils.getTodayDate();
         }
     }
 }
