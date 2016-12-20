@@ -36,7 +36,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 应用收集
+ * 应用收集 获取mtime 做rowkey 获取到的数据 原封不变存储
  * Created by ChenXiaoLei on 2016/11/21.
  */
 public class DataCollectionStat {

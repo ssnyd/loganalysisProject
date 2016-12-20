@@ -1,5 +1,7 @@
 package com.yonyou.utils;
 
+import com.alibaba.fastjson.JSONObject;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -249,5 +251,64 @@ public class DateUtils {
             e.printStackTrace();
         }
         return time;
+    }
+    //根据log信息 转换成当前所在周的周一
+    public static String getWeekTime(String timestamp) {
+        SimpleDateFormat day = new SimpleDateFormat("yyyy:MM:dd");
+        Date t = null;
+        String format = "";
+        try {
+            t = day.parse(timestamp);
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(t);
+            cal.setFirstDayOfWeek(Calendar.MONDAY);//设置一个星期的第一天，按中国的习惯一个星期的第一天是星期一
+            int days = cal.get(Calendar.DAY_OF_WEEK);//获得当前日期是一个星期的第几天
+            cal.add(Calendar.DATE, cal.getFirstDayOfWeek()-days);//根据日历的规则，给当前日期减去星期几与一个星期第一天的差值
+            format = day.format(cal.getTime());
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return format;
+    }
+    //转换成根据log信息 转换成当月的第一天
+    public static String getMonthTime(String timestamp) {
+        SimpleDateFormat day = new SimpleDateFormat("yyyy:MM:dd");
+        Date t = null;
+        String format = "";
+        try {
+            t = day.parse(timestamp);
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(t);
+            cal.setFirstDayOfWeek(Calendar.MONDAY);//设置一个星期的第一天，按中国的习惯一个星期的第一天是星期一
+            cal.set(Calendar.DAY_OF_MONTH, 1);//设置为1号,当前日期既为本月第一天
+            format = day.format(cal.getTime());
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return format;
+    }
+   //字符串时间 转换秒级时间戳
+    public static String getTimestamp(String time) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy:MM:dd");
+        Date date = null;
+        try {
+            date = sdf.parse(time);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        long l = date.getTime() / 1000;
+        return l+"";
+    }
+    public static void main(String[] args)
+    {
+        JSONObject jsonObject = JSONObject.parseObject("{\"action\":\"view\",\"app_id\":\"22239\",\"client\":\"android\",\"client_ip\":\"123.1.4.5\",\"device_model\":\"SM-G9250\",\"device_name\":\"三星\",\"instance_id\":\"4785\",\"member_id\":\"3469\",\"mtime\":\"1482134768290\",\"object_id\":\"123456789\",\"qz_id\":\"74269\",\"user_id\":\"0\",\"ver_code\":\"3.0.5\"}");
+        JSONObject s = JSONObject.parseObject("{\"action\":\"view\",\"app_id\":\"99999\",\"client\":\"android\",\"client_ip\":\"123.1.4.5\",\"device_model\":\"SM-G9250\",\"device_name\":\"三星\",\"instance_id\":\"128261\",\"member_id\":\"3469\",\"mtime\":\"1482137412506\",\"object_id\":\"6123456\",\"qz_id\":\"88888\",\"user_id\":\"0\",\"ver_code\":\"3.0.5\"}");
+        Long mtime = s.getLong("mtime");
+        System.out.println(timeStamp2Date(mtime,null));
+        System.out.println(getWeekTime("2016:12:19"));
+        System.out.println(getMonthTime("2016:12:19"));
+        System.out.println(getTimestamp(getWeekTime("2016:12:19")));
+        System.out.println(getTimestamp(getMonthTime("2016:12:19")));
+
     }
 }

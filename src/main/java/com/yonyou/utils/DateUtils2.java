@@ -2,6 +2,7 @@ package com.yonyou.utils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
@@ -67,15 +68,66 @@ public class DateUtils2 {
     public static String getDayTime(String timestamp) {
         String strDateTime = timestamp.replace("[", "").replace("]", "");
         SimpleDateFormat formatter = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
-        SimpleDateFormat hour = new SimpleDateFormat("yyyy:MM:dd:HH");
+        SimpleDateFormat hour = new SimpleDateFormat("yyyy:MM:dd");
         Date parse = null;
         try {
             parse = formatter.parse(strDateTime);
         } catch (ParseException e) {
             e.printStackTrace();
         }
-
         return hour.format(parse);
     }
+    public static String getWeek() {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy:MM:dd");
+        //获取当前周
+        Calendar cal = Calendar.getInstance();
+        cal.setFirstDayOfWeek(Calendar.MONDAY);//将每周第一天设为星期一，默认是星期天
+        cal.add(Calendar.DATE, 0);
+        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+        String monday = format.format(cal.getTime());
+        Date t  = null;
+        try {
+            t = format.parse(monday);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        long datekey = t.getTime()/1000;
+        return datekey+"";
+    }
+    public static String getWeeks() {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy:MM:dd");
+        //获取当前周
+        Calendar cal = Calendar.getInstance();
+        cal.setFirstDayOfWeek(Calendar.MONDAY);//将每周第一天设为星期一，默认是星期天
+        cal.add(Calendar.DATE, 0);
+        cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+        String monday = format.format(cal.getTime());
+        return monday;
+    }
+    public static String getMonth(){
+        SimpleDateFormat format = new SimpleDateFormat("yyyy:MM:dd");
+        //获取当前周
+        //获取当前月第一天：
+        Calendar c = Calendar.getInstance();
+        c.add(Calendar.MONTH, 0);
+        c.set(Calendar.DAY_OF_MONTH, 1);//设置为1号,当前日期既为本月第一天
+        String first = format.format(c.getTime());
+        Date t  = null;
+        try {
+            t = format.parse(first);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        long datekey = t.getTime()/1000;
 
+
+        return datekey+"";
+    }
+
+    public static void main(String[] args) {
+        System.out.println(getMonth());
+        System.out.println(getWeek());
+        System.out.println(getWeeks());
+        System.out.println(getDayTime("[16/Dec/2016:15:53:22 +0800]"));
+    }
 }
