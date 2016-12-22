@@ -139,10 +139,15 @@ public class ESNStreaming2Hbase {
                     }
                 }
         );
+        //过滤数据源
         JavaDStream<String> filter = filterByRequest(line);
+        //修改数据源 新增地区和4id
         JavaPairDStream<String, String> modify = modifyByIPAndToken(filter);
+        //缓存数据源
         modify = modify.persist(StorageLevel.MEMORY_AND_DISK_SER());
+        //计算pv
         JavaPairDStream<String, String> PVStat = calculatePVSta(modify);
+        //存储zookeeper offset
         lines.foreachRDD(new VoidFunction<JavaRDD<String>>() {
             @Override
             public void call(JavaRDD<String> t) throws Exception {
@@ -304,6 +309,8 @@ public class ESNStreaming2Hbase {
                     flag = log[19].contains("PHPSESSID");
                 } else if (log.length == 20 && ("api".equals(log[3]) || "h5-api".equals(log[3]) || "pc-api".equals(log[3]) || "m".equals(log[3]))) {
                     flag = v1.contains("token");
+                } else if (log.length == 20 && "openapi".equals(log[3])) {
+                    flag = true;
                 }
                 return (v1.contains(".htm") || ((!(v1.contains(".js ") || v1.contains(".css") || v1.contains(".js?") || v1.contains(".png") || v1.contains(".gif"))) && flag && 1 == 1));
             }
@@ -311,7 +318,7 @@ public class ESNStreaming2Hbase {
     }
 
     /**
-     * 增加新的字段 地址加3ID \t 拼接原始数据
+     * 增加新的字段 地区字段加4ID \t 拼接原始数据
      *
      * @param filter
      * @return
@@ -322,8 +329,8 @@ public class ESNStreaming2Hbase {
             public Tuple2<String, String> call(String s) throws Exception {
                 String token = "";
                 String[] lines = s.split("\t");
-                String mquID = "member_id:empty\tqz_id:empty\tuser_id:empty";
-                String remote_addr = "country:empty\tregion:empty\tcity:empty\tinstance_id:empty";
+                String mquID = "member_id:empty\tqz_id:empty\tuser_id:empty\tinstance_id:empty";
+                String remote_addr = "country:empty\tregion:empty\tcity:empty";
                 //求ip
                 String ip = lines[0];
                 if (!"".equals(ip) && ip.length() < 16) {
@@ -341,9 +348,16 @@ public class ESNStreaming2Hbase {
                     }
                 }
                 //求mqu
+                //遇见.htm请求的不分析直接存空
                 if (lines[9].contains(".htm")) {
                     System.out.println("存在htm 不分析");
-                } else if ("esn".equals(lines[3])) {
+                }
+                //计算openapi 最后 20位 字段qz_id=80298882&instance_id=78136078&member_id=68175624 需要反编译
+                else if ("openapi".equals(lines[3])) {
+                    mquID = getOpenApi(lines[19]);
+                }
+                //针对esn处理 找到PHPSESSID 调用user/redis/esn/"
+                else if ("esn".equals(lines[3])) {
                     if (lines[19].split(" ")[0].contains("PHPSESSID")) {
                         token = lines[19].split(" ")[0].split("=")[1].split(";")[0];
                     }
@@ -357,7 +371,10 @@ public class ESNStreaming2Hbase {
                             System.out.println(result + " ==> json→token");
                         }
                     }
-                } else {
+                }
+                //计算剩下的类型 区别accesstoken 和token 分别到request字段 or 参数字段 寻找token 参数字段优先
+                else {
+                    //api 寻找access_token
                     if ("api".equals(lines[3])) {
                         token = ESNStreaming2Hbase.Token(lines);
                         if (token.equals(""))
@@ -377,7 +394,9 @@ public class ESNStreaming2Hbase {
                             } catch (MalformedURLException e) {
                                 e.printStackTrace();
                             }
-                    } else {
+                    }
+                    //其余的字段 按照token计算
+                    else {
                         token = ESNStreaming2Hbase.Token(lines);
                         if ("".equals(token)) {
                             try {
@@ -402,24 +421,29 @@ public class ESNStreaming2Hbase {
                         mquID = JSONUtil.getmquStr(HttpReqUtil.getResult("user/redis/api/" + token, ""));
                     }
                 }
+                //局域网不在统计范围内
                 if (!remote_addr.contains("局域网")) {
                     String value = s + "\t" + remote_addr + "\t" + mquID;
                     String times = getTime(lines[7]);
+                    //主键
                     System.out.println(times + ":" + lines[2] + ":" + lines[3] + ":" + lines[8] + "&&" + token + "==>" + lines[9]);
                     return new Tuple2<String, String>(times + ":" + lines[2] + ":" + lines[3] + ":" + lines[8], value);
                 } else {
                     return null;
                 }
             }
-        }).filter(new Function<Tuple2<String, String>, Boolean>() {
-            @Override
-            public Boolean call(Tuple2<String, String> tuple2) throws Exception {
-                if (tuple2 != null) {
-                    return true;
-                }
-                return false;
-            }
-        });
+        })
+                //去除对应的null
+                .filter(new Function<Tuple2<String, String>, Boolean>() {
+                    @Override
+                    public Boolean call(Tuple2<String, String> tuple2) throws Exception {
+                        if (tuple2 != null) {
+                            return true;
+                        }
+                        return false;
+                    }
+                });
+        //开始存hbase
         modify.foreachRDD(new VoidFunction<JavaPairRDD<String, String>>() {
             @Override
             public void call(JavaPairRDD<String, String> rdd) throws Exception {
@@ -451,6 +475,33 @@ public class ESNStreaming2Hbase {
             }
         });
         return modify;
+    }
+
+    /**
+     * opapi 计算mqui
+     *
+     * @param line
+     * @return
+     */
+    private static String getOpenApi(String line) {
+        //首先判断是否20字段为qz_id=80298882&instance_id=78136078&member_id=68175624类型
+        String[] mqu20 = line.split("&");
+        String qz = "qz_id:empty";
+        String mem = "instance_id:empty";
+        String ins = "member_id:empty";
+        //判断是否长度3 user 设置为0
+        if (mqu20.length == 3) {
+            for (String mqu20s : mqu20) {
+                if (mqu20s.contains("qz") && mqu20s.split("=").length == 2) {
+                    qz = "qz_id:" + IdCrypt.decodeId(mqu20s.split("=")[1]);
+                } else if (mqu20s.contains("instance") && mqu20s.split("=").length == 2) {
+                    ins = "instance_id:" + IdCrypt.decodeId(mqu20s.split("=")[1]);
+                } else if (mqu20s.contains("member") && mqu20s.split("=").length == 2) {
+                    mem = "member_id:" + IdCrypt.decodeId(mqu20s.split("=")[1]);
+                }
+            }
+        }
+        return mem + "\t" + qz + "\tuser_id:empty\t" + ins;
     }
 
 

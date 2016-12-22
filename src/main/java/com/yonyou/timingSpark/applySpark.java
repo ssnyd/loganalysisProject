@@ -49,10 +49,10 @@ public class applySpark {
         scan.addColumn(Bytes.toBytes("app_case"), Bytes.toBytes("log"));
 //      scan.setStartRow(Bytes.toBytes(getTimes("2016:11:28")+":#"));
 //      scan.setStopRow(Bytes.toBytes(getTimes("2016:11:28")+"::"));
-        if (args.length==2){
+        if (args.length == 2) {
             scan.setStartRow(Bytes.toBytes(getTimes(args[0]) + ":#"));
             scan.setStopRow(Bytes.toBytes(getTimes(args[1]) + "::"));
-        }else {
+        } else {
             scan.setStartRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + ":#"));
             scan.setStopRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + "::"));
         }
@@ -113,7 +113,7 @@ public class applySpark {
                         app_id = line.split("&")[1].split(":")[1];
                         if (app_id.contains("-")) {
                             String[] str = line.split("&");
-                            line = "open_appid:"+app_id + "&" + "name:empty" + "&" + str[0] + "&" + "app_id:0" + "&" + str[2] + "&" + str[3] + "&" + str[4] + "&" + str[5];
+                            line = "open_appid:" + app_id + "&" + "name:empty" + "&" + str[0] + "&" + "app_id:0" + "&" + str[2] + "&" + str[3] + "&" + str[4] + "&" + str[5];
                         } else {
                             String opid = JSONUtil.getopenId(HttpReqUtil.getResult("app/info/" + app_id, ""));
                             line = opid + "&" + line;
