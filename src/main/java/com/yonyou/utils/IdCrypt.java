@@ -6,11 +6,11 @@ package com.yonyou.utils;
 public class IdCrypt
 {
     public static void main(String args[]) {
-        String qzId = "88511";
+        String qzId = "385503";
         String qzIdHeader = IdCrypt.encodeId(qzId);
         System.out.println(qzId + " 加密后数据 " + qzIdHeader);
 
-        String qzIdSource = IdCrypt.decodeId("78136078");
+        String qzIdSource = IdCrypt.decodeId("77295200");
         System.out.println(qzIdHeader + " 解密后数据 " + qzIdSource);
     }
 

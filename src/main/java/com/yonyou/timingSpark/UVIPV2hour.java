@@ -61,7 +61,7 @@ public class UVIPV2hour {
             conf.set(TableInputFormat.SCAN, ScanToString);
             JavaPairRDD<ImmutableBytesWritable, Result> myRDD =
                     sc.newAPIHadoopRDD(conf, TableInputFormat.class,
-                            ImmutableBytesWritable.class, Result.class);
+                            ImmutableBytesWritable.class, Result.class).repartition(200);
             //读取的每一行数据
             JavaRDD<String> filter = myRDD.map(new Function<Tuple2<ImmutableBytesWritable, Result>, String>() {
                 @Override
@@ -93,7 +93,7 @@ public class UVIPV2hour {
         JavaPairRDD<String, Integer> totalRDD = line.filter(new Function<String, Boolean>() {
             @Override
             public Boolean call(String v1) throws Exception {
-                return v1.split("\t").length >= 26 && v1.split("\t")[24].split(":").length == 2;
+                return v1.split("\t").length >= 26 && v1.split("\t")[23].split(":").length == 2&& v1.split("\t")[24].split(":").length == 2&& v1.split("\t")[25].split(":").length == 2&& v1.split("\t")[26].split(":").length == 2;
             }
         }).mapToPair(new PairFunction<String, String, Integer>() {
             @Override
@@ -122,7 +122,7 @@ public class UVIPV2hour {
             public Integer call(Integer v1, Integer v2) throws Exception {
                 return v1 + v2;
             }
-        });
+        },1);
         hourRDD.foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
             @Override
             public void call(Iterator<Tuple2<String, Integer>> tuple2) throws Exception {
@@ -182,7 +182,7 @@ public class UVIPV2hour {
             public Integer call(Integer v1, Integer v2) throws Exception {
                 return v1 + v2;
             }
-        });
+        },1);
         hourRDD.foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
             @Override
             public void call(Iterator<Tuple2<String, Integer>> tuple2) throws Exception {

@@ -208,7 +208,7 @@ public class UVIPVSpark {
         JavaPairRDD<String, Integer> totalRDD = line.filter(new Function<String, Boolean>() {
             @Override
             public Boolean call(String v1) throws Exception {
-                return v1.split("\t").length >= 26 && v1.split("\t")[24].split(":").length == 2;
+                return v1.split("\t").length >= 26 && v1.split("\t")[23].split(":").length == 2&& v1.split("\t")[24].split(":").length == 2&& v1.split("\t")[25].split(":").length == 2&& v1.split("\t")[26].split(":").length == 2;
             }
         }).mapToPair(new PairFunction<String, String, Integer>() {
             @Override
