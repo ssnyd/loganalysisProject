@@ -1,12 +1,8 @@
-package com.yonyou.timingSpark.uvev2weekandmonth;
+package com.yonyou.timingSpark.TemporaryTask;
 
-import com.yonyou.hbaseUtil.HbaseConnectionFactory;
 import com.yonyou.utils.DateUtils;
-import com.yonyou.utils.DateUtils2;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -23,20 +19,17 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.VoidFunction;
 import scala.Tuple2;
 
-import java.util.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
- * 为了以后计算大量uv方便
- * 获取esn_accesslog log 按照天去重 然后组装 时间＋memid＋instanceid 存到hbase
- * hbase存一份数据 最新的数据替换 故 也能达到去重的效果
- * <p>
- * <p>
- * Created by chenxiaolei on 16/12/19.
+ * Created by chenxiaolei on 16/12/23.
  */
-public class Esn2hbase2ue {
+public class Apply1223 {
     public static void main(String[] args) {
         SparkConf sconf = new SparkConf()
-                .setAppName("Esn2hbase2ue")
+                .setAppName("applySpark")
                 .set("spark.default.parallelism", "150")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
                 .set("spark.locality.wait", "100ms")
                 .set("spark.shuffle.manager", "hash")//使用hash的shufflemanager
@@ -50,18 +43,20 @@ public class Esn2hbase2ue {
         JavaSparkContext sc = new JavaSparkContext(sconf);
         Configuration conf = HBaseConfiguration.create();
         Scan scan = new Scan();
-        scan.addFamily(Bytes.toBytes("accesslog"));
-        scan.addColumn(Bytes.toBytes("accesslog"), Bytes.toBytes("info"));
+        scan.addFamily(Bytes.toBytes("app_case"));
+        scan.addColumn(Bytes.toBytes("app_case"), Bytes.toBytes("log"));
+//      scan.setStartRow(Bytes.toBytes(getTimes("2016:11:28")+":#"));
+//      scan.setStopRow(Bytes.toBytes(getTimes("2016:11:28")+"::"));
         if (args.length == 2) {
-            //默认是昨天的数据
-            scan.setStartRow(Bytes.toBytes(args[0] + ":#"));
-            scan.setStopRow(Bytes.toBytes(args[1] + "::"));
+            scan.setStartRow(Bytes.toBytes(getTimes(args[0]) + ":#"));
+            scan.setStopRow(Bytes.toBytes(getTimes(args[1]) + "::"));
         } else {
-            scan.setStartRow(Bytes.toBytes(DateUtils.getYesterdayDate() + ":#"));
-            scan.setStopRow(Bytes.toBytes(DateUtils.getYesterdayDate() + "::"));
+            scan.setStartRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + ":#"));
+            scan.setStopRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + "::"));
         }
+
         try {
-            String tableName = "esn_accesslog";
+            final String tableName = "esn_datacollection";
             conf.set(TableInputFormat.INPUT_TABLE, tableName);
             ClientProtos.Scan proto = ProtobufUtil.toScan(scan);
             String ScanToString = Base64.encodeBytes(proto.toByteArray());
@@ -70,10 +65,11 @@ public class Esn2hbase2ue {
                     sc.newAPIHadoopRDD(conf, TableInputFormat.class,
                             ImmutableBytesWritable.class, Result.class).repartition(200);
             //读取的每一行数据
-            JavaRDD<String> filter = myRDD.map(new Function<Tuple2<ImmutableBytesWritable, Result>, String>() {
+            JavaRDD<String> filterRDD = myRDD.map(new Function<Tuple2<ImmutableBytesWritable, Result>, String>() {
                 @Override
                 public String call(Tuple2<ImmutableBytesWritable, Result> v1) throws Exception {
-                    byte[] value = v1._2.getValue(Bytes.toBytes("accesslog"), Bytes.toBytes("info"));
+
+                    byte[] value = v1._2.getValue(Bytes.toBytes("app_case"), Bytes.toBytes("log"));
                     if (value != null) {
                         return Bytes.toString(value);
                     }
@@ -82,50 +78,35 @@ public class Esn2hbase2ue {
             }).filter(new Function<String, Boolean>() {
                 @Override
                 public Boolean call(String v1) throws Exception {
-                    return v1 != null && v1.split("\t").length == 27;
+                    return v1 != null;
                 }
-            }).filter(new Function<String, Boolean>() {
+            });
+            filterRDD.filter(new Function<String, Boolean>() {
                 @Override
-                public Boolean call(String s) throws Exception {
-                    String[] str = s.split("\t");
-                    return str[26].split(":").length == 2 && str[23].split(":").length == 2 && (!"empty".equals(str[23].split(":")[1])) && (!"empty".equals(str[26].split(":")[1]));
+                public Boolean call(String v1) throws Exception {
+
+                    return v1.contains("\"member_id\":\"2877553\"")&&v1.contains("\"action\":\"view\"");
                 }
-            }).map(new Function<String, String>() {
+            }).foreach(new VoidFunction<String>() {
                 @Override
-                public String call(String s) throws Exception {
-                    String[] lines = s.split("\t");
-                    return DateUtils2.getDayTime(lines[7]) + "\t" + lines[23].split(":")[1] + "\t" + lines[26].split(":")[1];
-                }
-            }).distinct();
-//去重后直接存hbase
-            filter.foreachPartition(new VoidFunction<Iterator<String>>() {
-                @Override
-                public void call(Iterator<String> iterator) throws Exception {
-                    List<Put> puts = new ArrayList<Put>();
-                    String s = "";
-                    while (iterator.hasNext()) {
-                        s = iterator.next();
-                        String[] lines = s.split("\t");
-                        if (lines.length == 3) {
-                            Put put = new Put((String.valueOf(lines[0] + ":0" + UUID.randomUUID().toString().replace("-", "")).getBytes()));
-                            put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("log"), Bytes.toBytes(s));
-                            puts.add(put);
-                        }
-                    }
-                    if (puts.size() > 0) {
-                        HTable hTable = HbaseConnectionFactory.gethTable("esn_uvev", "info");
-                        hTable.put(puts);
-                        hTable.flushCommits();
-                        System.out.println("hbase ==> esn_uvev " + puts.size());
-                        puts.clear();
-                        if (hTable != null) {
-                            hTable.close();
-                        }
-                    }
+                public void call(String s) throws Exception {
+                    System.out.println(s);
                 }
             });
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+    private static long getTimes(String date) {
+        SimpleDateFormat day = new SimpleDateFormat("yyyy:MM:dd");
+        Date parse = null;
+        long l = 0l;
+        try {
+            parse = day.parse(date);
+            l = parse.getTime() / 1000;
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return l;
     }
 }

@@ -1,4 +1,4 @@
-package com.yonyou.timingSpark;
+package com.yonyou.timingSpark.TemporaryTask;
 
 import com.yonyou.utils.DateUtils;
 import org.apache.hadoop.conf.Configuration;

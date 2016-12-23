@@ -41,7 +41,15 @@ public class UVIPV2hour {
     public static void main(String[] args) {
         SparkConf sconf = new SparkConf()
                 .setAppName("uvipv2hour")
-                .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
+                .set("spark.default.parallelism", "150")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
+                .set("spark.locality.wait", "100ms")
+                .set("spark.shuffle.manager", "hash")//使用hash的shufflemanager
+                .set("spark.shuffle.consolidateFiles", "true")//shufflemap端开启合并较小落地文件（hashshufflemanager方式一个task对应一个文件，开启合并，reduce端有几个就是固定几个文件，提前分配好省着merge了）
+                .set("spark.shuffle.file.buffer", "64")//shufflemap端mini环形缓冲区bucket的大小调大一倍，默认32KB
+                .set("spark.reducer.maxSizeInFlight", "24")//从shufflemap端拉取数据24，默认48M
+                .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
+                .set("spark.shuffle.io.maxRetries", "10")//GC重试次数，默认3
+                .set("spark.shuffle.io.retryWait", "30s");//GC等待时长，默认5s
 //      sconf.setMaster("local[2]");
         JavaSparkContext sc = new JavaSparkContext(sconf);
         Configuration conf = HBaseConfiguration.create();
