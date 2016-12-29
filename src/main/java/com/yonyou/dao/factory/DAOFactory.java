@@ -95,5 +95,14 @@ public class DAOFactory {
     public static IEPVStatDAO getEPVStatDAO() {
         return new EPVStatDAOImpl();
     }
+    /**
+     * flow接口
+     *
+     * @return
+     *
+     */
+    public static FlowStatDAO getFlowStatDAO() {
+        return new FlowStatDAOImpl();
+    }
 }
 
