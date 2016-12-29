@@ -9,6 +9,14 @@ public class applyStat implements Serializable {
     private String created;
     private String rpid;
     private String action;
+    private String myType;
+    public String getMyType() {
+        return myType;
+    }
+
+    public void setMyType(String myType) {
+        this.myType = myType;
+    }
     private Integer category;
 
     public Integer getCategory() {

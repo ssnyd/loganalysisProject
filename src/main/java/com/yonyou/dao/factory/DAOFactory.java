@@ -53,7 +53,22 @@ public class DAOFactory {
     public static IApplyStatDAO getApplyStatDAO() {
         return new ApplyStatImpl();
     }
-
+    /**
+     * apply2实时接口
+     *
+     * @return
+     */
+    public static IApplyEStatDAO getApplyEStatDAO() {
+        return new ApplyEStatImpl();
+    }
+    /**
+     * apply3实时接口
+     *
+     * @return
+     */
+    public static IApplyQStatDAO getApplyQStatDAO() {
+        return new ApplyQStatImpl();
+    }
     /**
      * ev实时接口
      *
