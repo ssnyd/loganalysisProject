@@ -6,6 +6,7 @@ import java.io.Serializable;
  * Created by chenxiaolei on 16/12/14.
  */
 public class EUPV implements Serializable{
+    private static final long serialVersionUID = 196694849038560540L;
     private String type;
     private String instanceId;
     private String created;

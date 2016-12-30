@@ -6,6 +6,7 @@ import java.io.Serializable;
  * Created by ChenXiaoLei on 2016/11/16.
  */
 public class MemIDStat implements Serializable{
+    private static final long serialVersionUID = 4980507775120932802L;
     private String created ;
     private String memberId ;
     private String qzId;

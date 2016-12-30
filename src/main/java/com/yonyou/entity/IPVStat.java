@@ -6,6 +6,7 @@ import java.io.Serializable;
  * Created by ChenXiaoLei on 2016/11/17.
  */
 public class IPVStat implements Serializable {
+    private static final long serialVersionUID = -7224478780683495901L;
     private String type;
     private String clientType;
     private String created;

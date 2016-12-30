@@ -6,6 +6,7 @@ import java.io.Serializable;
  * Created by ChenXiaoLei on 2016/11/27.
  */
 public class applyStat implements Serializable {
+    private static final long serialVersionUID = -8591250327149763909L;
     private String created;
     private String rpid;
     private String action;

@@ -27,6 +27,7 @@ import java.io.Serializable;
  sent_http_set_cookie #cookie 19
  */
 public class StatLogs implements Serializable {
+    private static final long serialVersionUID = -1489996937308036740L;
     private String remote_addr;//记录客户端ip地址                             //0
     private String remote_user;//记录客户端名称                               //1
     private String server_addr;//本机ip                                      //2

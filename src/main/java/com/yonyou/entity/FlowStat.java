@@ -1,9 +1,12 @@
 package com.yonyou.entity;
 
+import java.io.Serializable;
+
 /**
  * Created by chenxiaolei on 16/12/29.
  */
-public class FlowStat {
+public class FlowStat implements Serializable{
+    private static final long serialVersionUID = 2988656210742646946L;
     private String created;
     private String type;
     private String siteType;

@@ -6,6 +6,7 @@ import java.io.Serializable;
  * Created by chenxiaolei on 16/12/13.
  */
 public class EVStat implements Serializable{
+    private static final long serialVersionUID = -7315533188839279053L;
     private String type;
     private String created;
     private Integer num;

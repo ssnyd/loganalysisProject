@@ -6,6 +6,7 @@ import java.io.Serializable;
  * Created by ChenXiaoLei on 2016/11/16.
  */
 public class UVStat implements Serializable {
+    private static final long serialVersionUID = 4929668760677360418L;
     private String type;
     private String clientType;
     private String created;

@@ -6,6 +6,7 @@ import java.io.Serializable;
  * Created by ChenXiaoLei on 2016/11/9.
  */
 public class PVStat implements Serializable{
+    private static final long serialVersionUID = 2985756100635634686L;
     private String timestamp;
     private String region;
     private int ClickCount;

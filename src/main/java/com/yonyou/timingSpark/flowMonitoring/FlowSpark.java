@@ -25,7 +25,6 @@ import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import scala.Tuple2;
-import sun.plugin2.util.BrowserType;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -187,8 +186,7 @@ public class FlowSpark {
                 .set("spark.reducer.maxSizeInFlight", "24")//从shufflemap端拉取数据24，默认48M
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
                 .set("spark.shuffle.io.maxRetries", "10")//GC重试次数，默认3
-                .set("spark.shuffle.io.retryWait", "30s")//GC等待时长，默认5s
-                .registerKryoClasses(new Class[]{BrowserType.class});
+                .set("spark.shuffle.io.retryWait", "30s");//GC等待时长，默认5s
 //				.setMaster("local[2]");
         JavaSparkContext jsc = new JavaSparkContext(sparkConf);
         return jsc;

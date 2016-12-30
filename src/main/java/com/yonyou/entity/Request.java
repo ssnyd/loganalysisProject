@@ -6,6 +6,7 @@ import java.io.Serializable;
  * Created by ChenXiaoLei on 2016/11/1.
  */
 public class Request implements Serializable {
+    private static final long serialVersionUID = 4212305615745997688L;
     private String request_mode;
     private String Http_mode;
     private String body;
