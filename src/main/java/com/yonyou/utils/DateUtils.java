@@ -215,7 +215,7 @@ public class DateUtils {
             date = DATE_FORMAT.parse(datekey);
             c.setTime(date);
             int day=c.get(Calendar.DATE);
-            c.set(Calendar.DATE,day+1);
+            c.set(Calendar.DATE,day);
             DATE_FORMAT.format(c.getTime());
             return DATE_FORMAT.format(c.getTime());
         } catch (ParseException e) {
@@ -330,7 +330,7 @@ public class DateUtils {
         //System.out.println(getTimestamp(getMonthTime("2016:12:19")));
         System.out.println(parseDate("2016:11:30"));
         System.out.println(getTimestamp(parseDate("2016:11:30")));
-        System.out.println(getTodayDate());
+        System.out.println(getYesterdayDate());
 
     }
 }

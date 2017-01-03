@@ -134,7 +134,7 @@ public class UVWeekSpark {
         if (s1.length == 2) {
             return DateUtils.parseDate(s1[0]);
         } else {
-            return DateUtils.getTodayDate();
+            return DateUtils.getYesterdayDate();
         }
     }
 }

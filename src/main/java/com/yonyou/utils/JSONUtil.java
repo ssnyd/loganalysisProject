@@ -58,6 +58,14 @@ public class JSONUtil {
         String mtime = jsonObject.getString("mtime");
         return "action:"+action+"&app_id:"+app_id+"&instance_id:"+instance_id+"&qz_id:"+qz_id+"&member_id:"+member_id+"&mtime:"+mtime;
     }
+    public static String getMember(String resultjson){
+        //{"action":"view","app_id":"22239","client":"android","client_ip":"10.1.201.131","device_model":"SM-G9250","device_name":"三星","instance_id":"3219","member_id":"3469","mtime":"1480044831884","qz_id":"3968","user_id":"3469","ver_code":"3.0.5"}
+        JSONObject jsonObject = JSONObject.parseObject(resultjson);
+        String action  = jsonObject.getString("action");
+        member_id = jsonObject.getString("member_id");
+        String mtime = jsonObject.getString("mtime");
+        return "action:"+action+"&member_id:"+member_id+"&mtime:"+mtime;
+    }
     public static String getmTime(String resultjson){
         JSONObject jsonObject = JSONObject.parseObject(resultjson);
         String mtime = "";
