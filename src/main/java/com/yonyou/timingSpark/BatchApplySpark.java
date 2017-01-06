@@ -2,7 +2,6 @@ package com.yonyou.timingSpark;
 
 import com.yonyou.jdbc.JDBCHelper;
 import com.yonyou.jdbc.JDBCUtils;
-import com.yonyou.jdbc.model.PVStatQueryResult;
 import com.yonyou.utils.DateUtils;
 import com.yonyou.utils.HttpReqUtil;
 import com.yonyou.utils.JSONUtil;
@@ -77,7 +76,7 @@ public class BatchApplySpark {
             conf.set(TableInputFormat.SCAN, ScanToString);
             JavaPairRDD<ImmutableBytesWritable, Result> myRDD =
                     sc.newAPIHadoopRDD(conf, TableInputFormat.class,
-                            ImmutableBytesWritable.class, Result.class).repartition(200);
+                            ImmutableBytesWritable.class, Result.class).repartition(100);
             //读取的每一行数据
             JavaRDD<String> filterRDD = myRDD.map(new Function<Tuple2<ImmutableBytesWritable, Result>, String>() {
                 @Override
@@ -134,10 +133,14 @@ public class BatchApplySpark {
                             String[] str = line.split("&");
                             line = "open_appid:" + app_id + "&" + "name:empty" + "&" + str[0] + "&" + "app_id:0" + "&" + str[2] + "&" + str[3] + "&" + str[4] + "&" + str[5];
                         } else {
+
                             String opid = JSONUtil.getopenId(HttpReqUtil.getResult("app/info/" + app_id, ""));
-                            line = opid + "&" + line;
+                            if (!"".equals(opid)){
+                                line = opid + "&" + line;
+
+                            }
                         }
-                        //open_appid:110&name:协同日程新&action:view&app_id:22239&instance_id:3219&qz_id:3968&member_id:3469&mtime:1480044831884
+                        //open_appid:110 &name:协同日程新 &action:view &app_id:22239 &instance_id:3219 &qz_id:3968 &member_id:3469 &mtime:1480044831884
                         list.add(line);
                     }
                     return list;
@@ -145,8 +148,9 @@ public class BatchApplySpark {
             }).filter(new Function<String, Boolean>() {
                 @Override
                 public Boolean call(String s) throws Exception {
+                    String[] split = s.split("&");
 
-                    return s.split("&")[1].split(":").length == 2 && s.split("&")[0].split(":").length == 2;
+                    return split[1].split(":").length == 2 && split[0].split(":").length == 2 && split.length==8;
                 }
             }).mapPartitions(new FlatMapFunction<Iterator<String>, String>() {
                 @Override
@@ -167,75 +171,19 @@ public class BatchApplySpark {
                 }
             });
 
-            //获得rpid 通过mysql获得
-            JavaRDD<String> reipRDD = openIdRDD.mapPartitions(new FlatMapFunction<Iterator<String>, String>() {
-                @Override
-                public Iterable<String> call(Iterator<String> iterator) throws Exception {
-                    String selectSQL = "SELECT id "
-                            + "FROM rp_app_general "
-                            + "WHERE appId=? "
-                            + "AND openAppId=? ";
-                    String insertSQL = "INSERT INTO rp_app_general(appId,openAppId,name,created) "
-                            + "VALUES(?,?,?,?)";
-                    List<String> list = new ArrayList<>();
-                    JDBCUtils jdbcUtils = JDBCUtils.getInstance();
-                    Connection conn = jdbcUtils.getConnection();
-                    String line = "";
-                    while (iterator.hasNext()) {
-                        final PVStatQueryResult queryResult = new PVStatQueryResult();
-                        line = iterator.next();
-                        String[] lines = line.split("&");
-                        String app_id = lines[3].split(":")[1];
-                        String open_id = lines[0].split(":")[1];
-                        String name = lines[1].split(":")[1];
-                        JDBCHelper.executeQuery(conn, selectSQL, new Object[]{
-                                app_id, open_id
-                        }, new JDBCHelper.QueryCallback() {
-                            @Override
-                            public void process(ResultSet rs) throws Exception {
-                                if (rs.next()) {
-                                    int count = rs.getInt(1);
-                                    queryResult.setCount(count);
-                                }
-                            }
-                        });
-                        int rpid = queryResult.getCount();
-                        if (rpid == 0) {
-                            JDBCHelper.executeUpdate(conn, insertSQL, new Object[]{
-                                    app_id, open_id, name, new Date().getTime() / 1000
-                            });
-                            JDBCHelper.executeQuery(conn, selectSQL, new Object[]{
-                                    app_id, open_id
-                            }, new JDBCHelper.QueryCallback() {
-                                @Override
-                                public void process(ResultSet rs) throws Exception {
-                                    if (rs.next()) {
-                                        int count = rs.getInt(1);
-                                        queryResult.setCount(count);
-                                    }
-                                }
-                            });
-                            rpid = queryResult.getCount();
-                        }
-                        line = "reid:" + rpid + "&" + line;
-                        list.add(line);
-                    }
-                    if (conn != null) {
-                        jdbcUtils.closeConnection(conn);
-                    }
-                    //reid:2 0 &open_appid:110 1 &name:协同日程新 2 &action:view 3 &app_id:22239 4 &instance_id:3219 5 &qz_id:3968 6 &member_id:3469 7 &mtime:1480044831884 8
-                    return list;
-                }
-            }).map(new Function<String, String>() {
+            //open_appid:110 &name:协同日程新 &action:view &app_id:22239 &instance_id:3219 &qz_id:3968 &member_id:3469 &mtime:1480044831884
+
+            JavaRDD<String> map = openIdRDD.map(new Function<String, String>() {
                 @Override
                 public String call(String v1) throws Exception {
                     String[] str = v1.split("&");
-                    return str[2].split(":")[1]+"&"+str[7].split(":")[1]+"&"+getDays(str[8].split(":")[1]);
+                    //name memeid mtime opappid
+                    return str[1].split(":")[1] + "&" + str[6].split(":")[1] + "&" + getDays(str[7].split(":")[1])+"&"+str[0].split(":")[1];
                 }
             });
 
             //过滤数据
-            JavaRDD<String> memberrdd = filterMemberId(reipRDD, whiteListBroadcast);
+            JavaRDD<String> memberrdd = filterMemberId(map, whiteListBroadcast);
             memberrdd = memberrdd.persist(StorageLevel.MEMORY_ONLY_SER());
             //求pv
             memberrdd.mapToPair(new PairFunction<String, String, Integer>() {
@@ -244,11 +192,10 @@ public class BatchApplySpark {
                 @Override
                 public Tuple2<String, Integer> call(String s) throws Exception {
                     //-----------------
+                    //name memeid mtime opappid
                     String[] str = s.split("&");
-                    //String name = str[0];
-                    //String mem = str[1];
-                    //String time = str[2];
-                    return new Tuple2<String, Integer>(str[2]+"&"+str[0],1);
+                    //mtime opid name ,1
+                    return new Tuple2<String, Integer>(str[2]+"&"+str[3]+"&"+str[0],1);
                 }
             }).reduceByKey(new Function2<Integer, Integer, Integer>() {
                 @Override
@@ -263,7 +210,7 @@ public class BatchApplySpark {
                 @Override
                 public Tuple2<String, Integer> call(String s) throws Exception {
                     String[] str = s.split("&");
-                    return new Tuple2<String, Integer>(str[2]+"&"+str[0],1);
+                    return new Tuple2<String, Integer>(str[2]+"&"+str[3]+"&"+str[0],1);
                 }
             }).reduceByKey(new Function2<Integer, Integer, Integer>() {
                 @Override
@@ -301,6 +248,7 @@ public class BatchApplySpark {
 
             @Override
             public Tuple2<String, String> call(String s) throws Exception {
+                //name memeid mtime opappid
                 String key = s.split("&")[1];
                 return new Tuple2<String, String>(key, s);
             }

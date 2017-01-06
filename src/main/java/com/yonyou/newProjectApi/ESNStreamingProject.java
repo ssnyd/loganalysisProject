@@ -3,7 +3,6 @@ package com.yonyou.newProjectApi;
 import com.yonyou.conf.ConfigurationManager;
 import com.yonyou.constant.Constants;
 import com.yonyou.cxl.cache.Group;
-import com.yonyou.cxl.cache.GroupCacheFactory;
 import com.yonyou.dao.ILogStatDAO;
 import com.yonyou.dao.factory.DAOFactory;
 import com.yonyou.hbaseUtil.HbaseConnectionFactory;
@@ -27,7 +26,6 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.*;
 import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.*;
 import org.apache.spark.streaming.kafka.HasOffsetRanges;
@@ -49,7 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class ESNStreamingProject {
     //设置checkpoint
-    private static final String ESNSTREAMING2HBASE = "hdfs://cluster/streaming/syb/ESNStreaming";
+    private static final String ESNSTREAMING2HBASE = "hdfs://cluster/0105";
     //设置broker list
     private static final String KAFKA_METADATA_BROKER_LIST = "hdslave1:9092,hdslave2:9092,hdmaster:9092";
     private static final String ESNSTREAMING2HBASE_TOPIC = "esn_accesslog";
@@ -94,19 +92,18 @@ public class ESNStreamingProject {
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
                 .set("spark.shuffle.io.maxRetries", "10")//GC重试次数，默认3
                 .set("spark.shuffle.io.retryWait", "30s")//GC等待时长，默认5s
+
                 ;
         //设置批次时间 10s
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(ESNSTREAMING2HBASE_TIME));
         //设置spark容错点
         jssc.checkpoint(ESNSTREAMING2HBASE);
         //创建一个工厂 获取存储区域及4个ID
-        GroupCacheFactory factory = new GroupCacheFactory();
+        //GroupCacheFactory factory = new GroupCacheFactory();
         //******************************************************************
         //获取一个组
-        Group area = factory.group("area");
-        Group mqui = factory.group("mqui");
-        final Broadcast<Group> areaBro = jssc.sparkContext().broadcast(area);
-        final Broadcast<Group> mquiBro = jssc.sparkContext().broadcast(mqui);
+        //Group area=factory.group("area");
+        //final Broadcast<Group> areaBro = jssc.sparkContext().broadcast(area);
         //*******************************************************************
         //构建kafka参数 broker list
         Map<String, String> kafkaParams = new HashMap<String, String>();
@@ -154,18 +151,47 @@ public class ESNStreamingProject {
         );
         //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
         // 1 过滤数据源
-        JavaDStream<String> filter = filter(line);
-        // 2 添加区域字段
-        JavaDStream<String> modifyRDD2Area = modifyRDD2Area(filter, areaBro);
-        //增加mqui字段
-        JavaDStream<String> modifyRDD2Mqui = modifyRDD2Mqui(modifyRDD2Area, mquiBro);
-        JavaPairDStream<String, String> resultRDD = modifyRDD2Pair(modifyRDD2Mqui);
-        //缓存数据源
-        resultRDD = resultRDD.persist(StorageLevel.MEMORY_AND_DISK_SER());
-        //计算pv
-        JavaPairDStream<String, String> PVStat = calculatePVSta(resultRDD);
-        reslut2hbase(resultRDD);
-        //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+        //JavaDStream<String> filter = filter(line);
+        //// 2 添加区域字段
+        //JavaDStream<String> modifyRDD2Area = modifyRDD2Area(filter, areaBro);
+        ////增加mqui字段
+        //JavaDStream<String> modifyRDD2Mqui = modifyRDD2Mqui(modifyRDD2Area, areaBro);
+        //JavaPairDStream<String, String> resultRDD = modifyRDD2Pair(modifyRDD2Mqui);
+        ////缓存数据源
+        //resultRDD = resultRDD.persist(StorageLevel.MEMORY_AND_DISK_SER());
+        ////计算pv
+        //JavaPairDStream<String, String> PVStat = calculatePVSta(resultRDD);
+        //reslut2hbase(resultRDD);
+        line.map(new Function<String, String>() {
+            @Override
+            public String call(String line) throws Exception {
+                String remote_addr = "country:empty\tregion:empty\tcity:empty";
+                //Group area = areaBro.value();
+                String[] lines = line.split("\t");
+                //获取ip
+                String ip = lines[0];
+                System.out.println(ip+"1");
+                //是否截取成功
+                if (!"".equals(ip) && ip.length() < 16) {
+                    try {
+                        //从缓存中获取
+                        //remote_addr = area.getValue(ip) +"";
+                        //System.out.println(remote_addr+"2");
+                        //为空则
+                        if ("null".equals(remote_addr)) {
+                            //通过接口获取
+                            remote_addr = JSONUtil.getIPStr(HttpReqUtil.getResult("ip/query", ip));
+                            //返回的数据添加到area
+                            //area.push(ip, remote_addr, 5);
+                        }
+                    } catch (Exception e) {
+                        System.out.println(ip + " ==> read time out! 数据跳过");
+                    }
+                }
+                return remote_addr;
+            }
+        }).print();
+        ////&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
         //存储zookeeper offset
         lines.foreachRDD(new VoidFunction<JavaRDD<String>>() {
             private static final long serialVersionUID = 259366885091079449L;
@@ -259,13 +285,13 @@ public class ESNStreamingProject {
                     if (!"".equals(ip) && ip.length() < 16) {
                         try {
                             //从缓存中获取
-                            remote_addr = area.getValue(ip) + "";
+                            remote_addr = area.getValue(ip) +"";
                             //为空则找借口
                             if ("null".equals(remote_addr)) {
                                 //通过接口获取
                                 remote_addr = JSONUtil.getIPStr(HttpReqUtil.getResult("ip/query", ip));
                                 //返回的数据添加到area
-                                area.push(ip, remote_addr, 10);
+                                area.push(ip, remote_addr, 5);
                             }
                         } catch (Exception e) {
                             System.out.println(ip + " ==> read time out! 数据跳过");
@@ -322,7 +348,7 @@ public class ESNStreamingProject {
                             if ("null".equals(mquID)) {
                                 try {
                                     mquID = JSONUtil.getmquStr(HttpReqUtil.getResult("user/redis/esn/" + token, ""));
-                                    mqui.push(token, mquID, 10);
+                                    mqui.push(token, mquID, 5);
                                 } catch (Exception e) {
                                     System.out.println(token + "read time out ! token数据跳过");
                                     System.out.println(mquID + " ==> json→token");

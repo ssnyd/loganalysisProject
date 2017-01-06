@@ -330,7 +330,7 @@ public class DateUtils {
         //System.out.println(getTimestamp(getMonthTime("2016:12:19")));
         System.out.println(parseDate("2016:11:30"));
         System.out.println(getTimestamp(parseDate("2016:11:30")));
-        System.out.println(getYesterdayDate());
+        System.out.println(getlasthourDate());
 
     }
 }

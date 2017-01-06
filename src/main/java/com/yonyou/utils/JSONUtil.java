@@ -94,16 +94,24 @@ public class JSONUtil {
     }
     //{"ecode":"0","error":"","result":{"app_id":"22239","name":"协同日程新","open_appid":"110","qz_id":"3968"}}
     public static String getopenId(String appid){
-        JSONObject jsonObject = JSONObject.parseObject(appid);
-        ecode = jsonObject.getString("ecode");
-        String name = "";
-        String open_appid = "";
-        if ("0".equals(ecode)){
-            result = jsonObject.getString("result");
-            name = JSONObject.parseObject(result).getString("name");
-            open_appid = JSONObject.parseObject(result).getString("open_appid");
+        try {
+            JSONObject jsonObject = JSONObject.parseObject(appid);
+
+            ecode = jsonObject.getString("ecode");
+            String name = "";
+            String open_appid = "";
+            if ("0".equals(ecode)){
+                result = jsonObject.getString("result");
+                name = JSONObject.parseObject(result).getString("name");
+                open_appid = JSONObject.parseObject(result).getString("open_appid");
+            }
+            return "open_appid:"+open_appid+"&name:"+name;
+        } catch (Exception e){
+            return "";
         }
-        return "open_appid:"+open_appid+"&name:"+name;
+
+
+
     }
 
     /**

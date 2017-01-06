@@ -69,7 +69,7 @@
 //                //.set("spark.default.parallelism", "150")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
 //                //.set("spark.streaming.unpersist", "true")//默认是true，更智能地去持久化（unpersist）RDD,PS:清除已经持久化的RDD数据,1.4之前用spark.cleaner.ttl，之后被废弃，现在用spark.streaming.unpersist
 ////                .set("spark.memory.useLegacyMode", "true")//内存模型使用spark1.5版本的老版本的内存模型，这样memoryFraction/memoryFraction才能生效！！！
-////                .set("spark.storage.memoryFraction", "0.5")//留给cache做缓存或持久化用的内存的比例是多少，默认是0.6
+//                .set("spark.storage.memoryFraction", "0.7")//留给cache做缓存或持久化用的内存的比例是多少，默认是0.6
 //                .set("spark.shuffle.memoryFraction", "0.3")//留给shuffle的内存是多少，默认是0.2，因为shuffle有可能排序或者一些操作，多给点内存比例会快一点
 //                .set("spark.locality.wait", "100ms")
 //                .set("spark.shuffle.manager", "hash")//使用hash的shufflemanager
@@ -428,9 +428,10 @@
 //                if (!remote_addr.contains("局域网")) {
 //                    String value = s + "\t" + remote_addr + "\t" + mquID;
 //                    String times = getTime(lines[7]);
-//                    //主键
-//                    System.out.println(times + ":" + lines[2] + ":" + lines[3] + ":" + lines[8] + "&&" + token + "==>" + lines[9]);
-//                    return new Tuple2<String, String>(times + ":" + lines[2] + ":" + lines[3] + ":" + lines[8], value);
+//                    String uuid = UUID.randomUUID().toString().replace("-", "");
+//                    //主键//时间 本机IP地址 应用名称 日志写入时间
+//                    System.out.println(times + ":" + lines[2] + ":" + lines[3] + ":" + uuid + "&&" + token + "==>" + lines[9]);
+//                    return new Tuple2<String, String>(times + ":" + lines[2] + ":" + lines[3] + ":" + uuid, value);
 //                } else {
 //                    return null;
 //                }
@@ -488,7 +489,7 @@
 //     */
 //    private static String getOpenApi(String line) {
 //        //首先判断是否20字段为qz_id=80298882&instance_id=78136078&member_id=68175624类型
-//        String[] mqu20 = line.replace("\"","").split("&");
+//        String[] mqu20 = line.replace("\"", "").split("&");
 //        String qz = "qz_id:empty";
 //        String ins = "instance_id:empty";
 //        String mem = "member_id:empty";

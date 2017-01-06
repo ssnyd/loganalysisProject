@@ -56,8 +56,14 @@ public class EUPV2hour {
         scan.addColumn(Bytes.toBytes("accesslog"), Bytes.toBytes("info"));
         //scan.setStartRow(Bytes.toBytes(DateUtils.getYesterdayDate() + ":#"));
         //scan.setStopRow(Bytes.toBytes(DateUtils.getYesterdayDate() + "::"));
-        scan.setStartRow(Bytes.toBytes(DateUtils.getlasthourDate() + ":#"));
-        scan.setStopRow(Bytes.toBytes(DateUtils.getlasthourDate() + "::"));
+        if(args.length == 2) {
+            scan.setStartRow(Bytes.toBytes(args[0] + ":#"));
+            scan.setStopRow(Bytes.toBytes(args[1] + "::"));
+        }else {
+            scan.setStartRow(Bytes.toBytes(DateUtils.getlasthourDate() + ":#"));
+            scan.setStopRow(Bytes.toBytes(DateUtils.getlasthourDate() + "::"));
+        }
+
 
         try {
             String tableName = "esn_accesslog";

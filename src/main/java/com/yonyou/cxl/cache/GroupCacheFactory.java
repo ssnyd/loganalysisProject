@@ -1,6 +1,7 @@
 package com.yonyou.cxl.cache;
 
 
+import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -10,7 +11,7 @@ import java.util.Map;
  * 集合支持key-value
  * Created by chenxiaolei on 16/12/30.
  */
-public class GroupCacheFactory {
+public class GroupCacheFactory implements Serializable {
 
     // 数据容器
     private Map<String, Group> container;
