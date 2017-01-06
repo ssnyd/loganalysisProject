@@ -2,7 +2,6 @@ package com.yonyou.newProjectApi;
 
 import com.yonyou.conf.ConfigurationManager;
 import com.yonyou.constant.Constants;
-import com.yonyou.cxl.cache.Group;
 import com.yonyou.dao.ILogStatDAO;
 import com.yonyou.dao.factory.DAOFactory;
 import com.yonyou.hbaseUtil.HbaseConnectionFactory;
@@ -25,7 +24,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.*;
-import org.apache.spark.broadcast.Broadcast;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.*;
 import org.apache.spark.streaming.kafka.HasOffsetRanges;
@@ -83,10 +82,11 @@ public class ESNStreamingProject {
     public static JavaStreamingContext createContext() {
         SparkConf sparkConf = new SparkConf()
                 .setAppName("ESNStreamingProject")
-                .set("spark.default.parallelism", "150")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
+                .set("spark.default.parallelism", "10")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
                 .set("spark.locality.wait", "100ms")
                 .set("spark.shuffle.manager", "hash")//使用hash的shufflemanager
                 .set("spark.shuffle.consolidateFiles", "true")//shufflemap端开启合并较小落地文件（hashshufflemanager方式一个task对应一个文件，开启合并，reduce端有几个就是固定几个文件，提前分配好省着merge了）
+                .set("spark.storage.memoryFraction", "0.7")
                 .set("spark.shuffle.file.buffer", "64")//shufflemap端mini环形缓冲区bucket的大小调大一倍，默认32KB
                 .set("spark.reducer.maxSizeInFlight", "24")//从shufflemap端拉取数据24，默认48M
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
@@ -152,55 +152,18 @@ public class ESNStreamingProject {
         );
         //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
         // 1 过滤数据源
-        //JavaDStream<String> filter = filter(line);
-        //// 2 添加区域字段
-        //JavaDStream<String> modifyRDD2Area = modifyRDD2Area(filter, areaBro);
-        ////增加mqui字段
-        //JavaDStream<String> modifyRDD2Mqui = modifyRDD2Mqui(modifyRDD2Area, areaBro);
-        //JavaPairDStream<String, String> resultRDD = modifyRDD2Pair(modifyRDD2Mqui);
-        ////缓存数据源
-        //resultRDD = resultRDD.persist(StorageLevel.MEMORY_AND_DISK_SER());
-        ////计算pv
-        //JavaPairDStream<String, String> PVStat = calculatePVSta(resultRDD);
-        //reslut2hbase(resultRDD);
-        line.mapPartitions(new FlatMapFunction<Iterator<String>, String>() {
-            private static final long serialVersionUID = -2287419159107176163L;
-
-            @Override
-            public Iterable<String> call(Iterator<String> iterator) throws Exception {
-                List<String> list = new ArrayList<String>();
-                Map<String, String> map = new HashMap<String, String>();
-                while (iterator.hasNext()) {
-                    String remote_addr = "country:empty\tregion:empty\tcity:empty";
-                    String s = iterator.next();
-                    String ip = s.split("\t")[0];
-                    if (map.get(ip)==null){
-                        long l1 = System.currentTimeMillis();
-                        remote_addr = JSONUtil.getIPStr(HttpReqUtil.getResult("ip/query", ip));
-                        long l2 = System.currentTimeMillis();
-                        System.out.println("查询接口需要的时间 ："+ (l2-l1));
-                        //返回的数据添加到map
-                        map.put(ip,remote_addr);
-                        System.out.println(remote_addr + "    "+ip);
-
-                    }else {
-                        long l1 = System.currentTimeMillis();
-                        remote_addr =  map.get(ip)+"   !!!!!lalala  "+ip;
-                        if (map.size()>1000){
-                            map.clear();
-                        }
-                        long l2 = System.currentTimeMillis();
-                        System.out.println("查询map需要的时间 ："+ (l2-l1));
-                        System.out.println(remote_addr);
-                    }
-                    list.add(remote_addr);
-                }
-                System.out.println(map.size()+" 清空前 ");
-                map.clear();
-                System.out.println(map.size()+" 清空后 ");
-                return list;
-            }
-        }).print();
+        JavaDStream<String> filter = filter(line);
+        // 2 添加区域字段
+        JavaDStream<String> modifyRDD2Area = modifyRDD2Area(filter);
+        //增加mqui字段
+        JavaDStream<String> modifyRDD2Mqui = modifyRDD2Mqui(modifyRDD2Area);
+        JavaPairDStream<String, String> resultRDD = modifyRDD2Pair(modifyRDD2Mqui);
+        //缓存数据源
+        resultRDD = resultRDD.persist(StorageLevel.MEMORY_AND_DISK_SER());
+        //计算pv
+        JavaPairDStream<String, String> PVStat = calculatePVSta(resultRDD);
+        //存到hbase
+        reslut2hbase(resultRDD);
         ///&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
         //存储zookeeper offset
         lines.foreachRDD(new VoidFunction<JavaRDD<String>>() {
@@ -233,13 +196,9 @@ public class ESNStreamingProject {
     private static void reslut2hbase(JavaPairDStream<String, String> resultRDD) {
         //开始存hbase
         resultRDD.foreachRDD(new VoidFunction<JavaPairRDD<String, String>>() {
-            private static final long serialVersionUID = -3801869194572601364L;
-
             @Override
             public void call(JavaPairRDD<String, String> rdd) throws Exception {
                 rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
-                    private static final long serialVersionUID = 4157517822041473137L;
-
                     @Override
                     public void call(Iterator<Tuple2<String, String>> tuple2Iterator) throws Exception {
                         Tuple2<String, String> tuple = null;
@@ -273,10 +232,9 @@ public class ESNStreamingProject {
      * 增加区域字段
      *
      * @param filter
-     * @param areaBro
      * @return
      */
-    private static JavaDStream<String> modifyRDD2Area(JavaDStream<String> filter, final Broadcast<Group> areaBro) {
+    private static JavaDStream<String> modifyRDD2Area(JavaDStream<String> filter) {
 
         return filter.mapPartitions(new FlatMapFunction<Iterator<String>, String>() {
             private static final long serialVersionUID = 6424299360179888036L;
@@ -284,8 +242,8 @@ public class ESNStreamingProject {
             @Override
             public Iterable<String> call(Iterator<String> iterator) throws Exception {
                 List<String> list = new ArrayList<String>();
+                Map<String, String> ipmap = new HashMap<String, String>();
                 String remote_addr = "country:empty\tregion:empty\tcity:empty";
-                Group area = areaBro.value();
                 while (iterator.hasNext()) {
                     String line = iterator.next();
                     String[] lines = line.split("\t");
@@ -294,14 +252,15 @@ public class ESNStreamingProject {
                     //是否截取成功
                     if (!"".equals(ip) && ip.length() < 16) {
                         try {
-                            //从缓存中获取
-                            remote_addr = area.getValue(ip) + "";
-                            //为空则找借口
-                            if ("null".equals(remote_addr)) {
+                            if (ipmap.get(ip) == null) {
                                 //通过接口获取
                                 remote_addr = JSONUtil.getIPStr(HttpReqUtil.getResult("ip/query", ip));
-                                //返回的数据添加到area
-                                area.push(ip, remote_addr, 5);
+                                ipmap.put(ip, remote_addr);
+                            } else {
+                                remote_addr = ipmap.get(ip);
+                                if (ipmap.size() > 100) {
+                                    ipmap.clear();
+                                }
                             }
                         } catch (Exception e) {
                             System.out.println(ip + " ==> read time out! 数据跳过");
@@ -313,6 +272,7 @@ public class ESNStreamingProject {
                         list.add(line + "\t" + remote_addr);
                     }
                 }
+                ipmap.clear();
                 return list;
             }
         });
@@ -322,10 +282,9 @@ public class ESNStreamingProject {
      * 添加4个id字段 先缓存 没有 就去找接口
      *
      * @param modifyRDD2Area
-     * @param mquiBro
      * @return
      */
-    private static JavaDStream<String> modifyRDD2Mqui(JavaDStream<String> modifyRDD2Area, final Broadcast<Group> mquiBro) {
+    private static JavaDStream<String> modifyRDD2Mqui(JavaDStream<String> modifyRDD2Area) {
         return modifyRDD2Area.mapPartitions(new FlatMapFunction<Iterator<String>, String>() {
             private static final long serialVersionUID = 89196058162062616L;
 
@@ -333,7 +292,7 @@ public class ESNStreamingProject {
             public Iterable<String> call(Iterator<String> iterator) throws Exception {
                 List<String> list = new ArrayList<String>();
                 String mquID = "member_id:empty\tqz_id:empty\tuser_id:empty\tinstance_id:empty";
-                Group mqui = mquiBro.value();
+                Map<String, String> mquimap = new HashMap<String, String>();
                 //存储token
                 String token = "";
                 while (iterator.hasNext()) {
@@ -353,18 +312,18 @@ public class ESNStreamingProject {
                         if (lines[19].split(" ")[0].contains("PHPSESSID")) {
                             token = lines[19].split(" ")[0].split("=")[1].split(";")[0];
                         }
+
+
                         if (!"".equals(token) && !token.contains("/") && !token.contains("\\")) {
-                            mquID = mqui.getValue(token) + "";
-                            if ("null".equals(mquID)) {
-                                try {
-                                    mquID = JSONUtil.getmquStr(HttpReqUtil.getResult("user/redis/esn/" + token, ""));
-                                    mqui.push(token, mquID, 5);
-                                } catch (Exception e) {
-                                    System.out.println(token + "read time out ! token数据跳过");
-                                    System.out.println(mquID + " ==> json→token");
+                            if (mquimap.get(token) == null) {
+                                mquID = JSONUtil.getmquStr(HttpReqUtil.getResult("user/redis/esn/" + token, ""));
+                                mquimap.put(token, mquID);
+                            } else {
+                                mquID = mquimap.get(token);
+                                if (mquimap.size() > 100) {
+                                    mquimap.clear();
                                 }
                             }
-
                         }
                     } else {
                         //api 寻找access_token
@@ -411,15 +370,20 @@ public class ESNStreamingProject {
                             }
                         }
                         if (!"".equals(token) && !token.contains("/") && !token.contains("\\")) {
-                            mquID = mqui.getValue(token) + "";
-                            if ("null".equals(mquID)) {
+                            if (mquimap.get(token) == null) {
                                 mquID = JSONUtil.getmquStr(HttpReqUtil.getResult("user/redis/api/" + token, ""));
-                                mqui.push(token, mquID, 10);
+                                mquimap.put(token, mquID);
+                            } else {
+                                mquID = mquimap.get(token);
+                                if (mquimap.size() > 100) {
+                                    mquimap.clear();
+                                }
                             }
                         }
                     }
                     list.add(line + "\t" + mquID);
                 }
+                mquimap.clear();
                 return list;
             }
         });
@@ -439,7 +403,7 @@ public class ESNStreamingProject {
             @Override
             public Tuple2<String, String> call(String s) throws Exception {
                 String[] lines = s.split("\t");
-                String key = getTime(lines[7]) + ":" + lines[2] + ":" + lines[3] + ":" + lines[8];
+                String key = getTime(lines[7]) + ":" + lines[2] + ":" + lines[3] + ":" + UUID.randomUUID().toString().replace("-", "");
                 System.out.println(key + "==>" + lines[9]);
                 return new Tuple2<String, String>(key, s);
             }
@@ -749,3 +713,5 @@ public class ESNStreamingProject {
         return str;
     }
 }
+
+
