@@ -98,12 +98,13 @@ public class ESNStreamingProject {
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(ESNSTREAMING2HBASE_TIME));
         //设置spark容错点
         jssc.checkpoint(ESNSTREAMING2HBASE);
-        //创建一个工厂 获取存储区域及4个ID
+        ////创建一个工厂 获取存储区域及4个ID
         //GroupCacheFactory factory = new GroupCacheFactory();
-        //******************************************************************
-        //获取一个组
-        //Group area=factory.group("area");
-        //final Broadcast<Group> areaBro = jssc.sparkContext().broadcast(area);
+        ////******************************************************************
+        ////获取一个组
+        //Group hahaarea=factory.group("area");
+        ////JavaSparkContext javaSparkContext = jssc.sparkContext();
+        //final Broadcast<Group> areaBro = jssc.sparkContext().broadcast(hahaarea);
         //*******************************************************************
         //构建kafka参数 broker list
         Map<String, String> kafkaParams = new HashMap<String, String>();
@@ -137,7 +138,7 @@ public class ESNStreamingProject {
                 });
         final AtomicReference<OffsetRange[]> offsetRanges = new AtomicReference<>();
 
-        JavaDStream<String> line = lines.transform(
+        final JavaDStream<String> line = lines.transform(
                 new Function<JavaRDD<String>, JavaRDD<String>>() {
                     private static final long serialVersionUID = -3451503555864967626L;
 
@@ -162,36 +163,45 @@ public class ESNStreamingProject {
         ////计算pv
         //JavaPairDStream<String, String> PVStat = calculatePVSta(resultRDD);
         //reslut2hbase(resultRDD);
-        line.map(new Function<String, String>() {
+        line.mapPartitions(new FlatMapFunction<Iterator<String>, String>() {
+            private static final long serialVersionUID = -2287419159107176163L;
+
             @Override
-            public String call(String line) throws Exception {
-                String remote_addr = "country:empty\tregion:empty\tcity:empty";
-                //Group area = areaBro.value();
-                String[] lines = line.split("\t");
-                //获取ip
-                String ip = lines[0];
-                System.out.println(ip+"1");
-                //是否截取成功
-                if (!"".equals(ip) && ip.length() < 16) {
-                    try {
-                        //从缓存中获取
-                        //remote_addr = area.getValue(ip) +"";
-                        //System.out.println(remote_addr+"2");
-                        //为空则
-                        if ("null".equals(remote_addr)) {
-                            //通过接口获取
-                            remote_addr = JSONUtil.getIPStr(HttpReqUtil.getResult("ip/query", ip));
-                            //返回的数据添加到area
-                            //area.push(ip, remote_addr, 5);
+            public Iterable<String> call(Iterator<String> iterator) throws Exception {
+                List<String> list = new ArrayList<String>();
+                Map<String, String> map = new HashMap<String, String>();
+                while (iterator.hasNext()) {
+                    String remote_addr = "country:empty\tregion:empty\tcity:empty";
+                    String s = iterator.next();
+                    String ip = s.split("\t")[0];
+                    if (map.get(ip)==null){
+                        long l1 = System.currentTimeMillis();
+                        remote_addr = JSONUtil.getIPStr(HttpReqUtil.getResult("ip/query", ip));
+                        long l2 = System.currentTimeMillis();
+                        System.out.println("查询接口需要的时间 ："+ (l2-l1));
+                        //返回的数据添加到map
+                        map.put(ip,remote_addr);
+                        System.out.println(remote_addr + "    "+ip);
+
+                    }else {
+                        long l1 = System.currentTimeMillis();
+                        remote_addr =  map.get(ip)+"   !!!!!lalala  "+ip;
+                        if (map.size()>1000){
+                            map.clear();
                         }
-                    } catch (Exception e) {
-                        System.out.println(ip + " ==> read time out! 数据跳过");
+                        long l2 = System.currentTimeMillis();
+                        System.out.println("查询map需要的时间 ："+ (l2-l1));
+                        System.out.println(remote_addr);
                     }
+                    list.add(remote_addr);
                 }
-                return remote_addr;
+                System.out.println(map.size()+" 清空前 ");
+                map.clear();
+                System.out.println(map.size()+" 清空后 ");
+                return list;
             }
         }).print();
-        ////&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+        ///&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
         //存储zookeeper offset
         lines.foreachRDD(new VoidFunction<JavaRDD<String>>() {
             private static final long serialVersionUID = 259366885091079449L;
@@ -285,7 +295,7 @@ public class ESNStreamingProject {
                     if (!"".equals(ip) && ip.length() < 16) {
                         try {
                             //从缓存中获取
-                            remote_addr = area.getValue(ip) +"";
+                            remote_addr = area.getValue(ip) + "";
                             //为空则找借口
                             if ("null".equals(remote_addr)) {
                                 //通过接口获取
