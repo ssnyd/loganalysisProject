@@ -106,7 +106,9 @@ public class DateUtils {
     public static String getTodayDate() {
         return DATE_FORMAT.format(new Date());
     }
-    /**
+    public static String gettest() {
+        return TIME_FORMAT.format(new Date());
+    }/**
      * 获取当天日期（yyyy-MM-dd hhmm）
      *
      * @return 当天日期
@@ -282,6 +284,7 @@ public class DateUtils {
             cal.setTime(t);
             cal.setFirstDayOfWeek(Calendar.MONDAY);//设置一个星期的第一天，按中国的习惯一个星期的第一天是星期一
             int days = cal.get(Calendar.DAY_OF_WEEK);//获得当前日期是一个星期的第几天
+            System.out.println(days);
             cal.add(Calendar.DATE, cal.getFirstDayOfWeek()-days);//根据日历的规则，给当前日期减去星期几与一个星期第一天的差值
             format = day.format(cal.getTime());
         } catch (ParseException e) {
@@ -327,10 +330,14 @@ public class DateUtils {
         //System.out.println(getWeekTime("2016:12:19"));
         //System.out.println(getMonthTime("2016:12:19"));
         //System.out.println(getTimestamp(getWeekTime("2016:12:19")));
-        //System.out.println(getTimestamp(getMonthTime("2016:12:19")));
-        System.out.println(parseDate("2016:11:30"));
-        System.out.println(getTimestamp(parseDate("2016:11:30")));
-        System.out.println(getlasthourDate());
+        ////System.out.println(getTimestamp(getMonthTime("2016:12:19")));
+        //System.out.println(parseDate("2016:11:30"));
+        //System.out.println(getTimestamp(parseDate("2016:11:30")));
+        //System.out.println(getlasthourDate());
+        System.out.println(getWeekTime("2017:01:01"));
+        System.out.println(getMonthTime("2016:12:31"));
+        System.out.println(DateUtils.getYesterdayDate());
+        System.out.println(gettest());
 
     }
 }

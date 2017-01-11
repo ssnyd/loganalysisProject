@@ -44,7 +44,14 @@ public class DAOFactory {
     public static IIPVStatDAO getIPVStatDAO() {
         return new IPVStatDAOImpl();
     }
-
+    /**
+     * pv实时接口
+     *
+     * @return
+     */
+    public static IPVStatDAO getPVStatDAO() {
+        return new PVStatDAOImpl();
+    }
     /**
      * apply实时接口
      *

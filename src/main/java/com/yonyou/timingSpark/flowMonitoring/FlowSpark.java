@@ -20,10 +20,8 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.api.java.function.*;
+import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
 
 import java.io.IOException;
@@ -34,6 +32,7 @@ import java.util.List;
 
 /**
  * Created by chenxiaolei on 16/12/29.
+ * com.yonyou.timingSpark.flowMonitoring.FlowSpark
  */
 public class FlowSpark {
     public static void main(String[] args) {
@@ -41,11 +40,20 @@ public class FlowSpark {
             //初始化
             JavaSparkContext sc = initSpark();
             //获取元数据
-            JavaRDD<String> filter = resourceRDD(args, sc);
-            //获取流量RDD
-            JavaPairRDD<String, Double> flowRDD = getFlowRDD(filter);
-            //存结果mysql
-            flow2mysql(flowRDD);
+            JavaRDD<String> source = resourceRDD(args, sc);
+            //变化 time site ip mem tra
+            JavaRDD<String> maprdd = mapRDD(source);
+            //缓存到内存 复用rdd
+            maprdd = maprdd.persist(StorageLevel.MEMORY_ONLY());
+            //计算 流量RDD 并存储
+            calculaTeaffic2Mysql(maprdd);
+            //计算 uvRDD 并存储
+            calculaUV2Mysql(maprdd);
+            //计算 pvRDD 并存储
+            calculaPV2Mysql(maprdd);
+            //计算 ipvRDD 并存储
+            calculaIPV2Mysql(maprdd);
+
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -53,34 +61,113 @@ public class FlowSpark {
     }
 
     /**
-     *
-     * @param flowRDD
+     * 计算ipv 存储到mysql
+     * @param maprdd
      */
-    private static void flow2mysql(JavaPairRDD<String, Double> flowRDD) {
-        flowRDD.foreachPartition(new VoidFunction<Iterator<Tuple2<String, Double>>>() {
+    private static void calculaIPV2Mysql(JavaRDD<String> maprdd) {
+        maprdd.map(new Function<String, String>() {
+            private static final long serialVersionUID = 2692248415538872586L;
+
             @Override
-            public void call(Iterator<Tuple2<String, Double>> iterator) throws Exception {
+            public String call(String v1) throws Exception {
+                String[] lines = v1.split("&");
+                return lines[0] + "&" + lines[1] + "&" + lines[2];
+            }
+        }).distinct().mapToPair(new PairFunction<String, String, Integer>() {
+
+            private static final long serialVersionUID = -502098811580205184L;
+
+            @Override
+            public Tuple2<String, Integer> call(String s) throws Exception {
+                String[] lines = s.split("&");
+                return new Tuple2<String, Integer>(lines[0] +"&"+ lines[1], 1);
+            }
+        }).reduceByKey(new Function2<Integer, Integer, Integer>() {
+            private static final long serialVersionUID = -7456140153435084455L;
+
+            @Override
+            public Integer call(Integer v1, Integer v2) throws Exception {
+                return v1 + v2;
+            }
+        }).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
+            @Override
+            public void call(Iterator<Tuple2<String, Integer>> iterator) throws Exception {
                 List<FlowStat> flowStats = new ArrayList<FlowStat>();
-                Tuple2<String, Double> tuple = null;
+                Tuple2<String, Integer> tuple = null;
                 while (iterator.hasNext()) {
                     tuple = iterator.next();
                     String[] str = tuple._1.split("&");
-                    String created = str[0];
-                    String siteType = str[1];
-                    Double flow = tuple._2;
+                    int ipv = tuple._2;
                     FlowStat flowStat = new FlowStat();
-                    flowStat.setCreated(created);
-                    flowStat.setFlow(flow);
-                    flowStat.setSiteType(siteType);
-                    flowStat.setType("1hour");
+                    flowStat.setCreated(str[0]);
+                    flowStat.setFlow(ipv);
+                    flowStat.setSiteType(str[1]);
+                    flowStat.setType("1day");
                     flowStats.add(flowStat);
                 }
                 if (flowStats.size() > 0) {
                     JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                     Connection conn = jdbcUtils.getConnection();
                     FlowStatDAO flowStatDAO = DAOFactory.getFlowStatDAO();
-                    flowStatDAO.updataBatch(flowStats, conn);
-                    System.out.println("mysql 2 flowStats==> " + flowStats.size());
+                    flowStatDAO.updataBatch(flowStats, conn, 2);
+                    System.out.println("mysql 2 ipv==> " + flowStats.size());
+                    flowStats.clear();
+                    if (conn != null) {
+                        jdbcUtils.closeConnection(conn);
+                    }
+                }
+            }
+        });
+
+
+
+
+    }
+
+    /**
+     *计算pv 存储到mysql
+     * @param maprdd
+     */
+    private static void calculaPV2Mysql(JavaRDD<String> maprdd) {
+        maprdd.mapToPair(new PairFunction<String, String, Integer>() {
+            private static final long serialVersionUID = 1421708056182878792L;
+
+            @Override
+            public Tuple2<String, Integer> call(String s) throws Exception {
+                String[] lines = s.split("&");
+                return new Tuple2<String, Integer>(lines[0] + "&" + lines[1],1);
+            }
+        }).reduceByKey(new Function2<Integer, Integer, Integer>() {
+            private static final long serialVersionUID = -1422762837271470209L;
+
+            @Override
+            public Integer call(Integer v1, Integer v2) throws Exception {
+                return v1+v2;
+            }
+        }).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
+            private static final long serialVersionUID = 3812121298368817680L;
+
+            @Override
+            public void call(Iterator<Tuple2<String, Integer>> iterator) throws Exception {
+                List<FlowStat> flowStats = new ArrayList<FlowStat>();
+                Tuple2<String, Integer> tuple = null;
+                while (iterator.hasNext()) {
+                    tuple = iterator.next();
+                    String[] str = tuple._1.split("&");
+                    int pv = tuple._2;
+                    FlowStat flowStat = new FlowStat();
+                    flowStat.setCreated(str[0]);
+                    flowStat.setFlow(pv);
+                    flowStat.setSiteType(str[1]);
+                    flowStat.setType("1day");
+                    flowStats.add(flowStat);
+                }
+                if (flowStats.size() > 0) {
+                    JDBCUtils jdbcUtils = JDBCUtils.getInstance();
+                    Connection conn = jdbcUtils.getConnection();
+                    FlowStatDAO flowStatDAO = DAOFactory.getFlowStatDAO();
+                    flowStatDAO.updataBatch(flowStats, conn, 1);
+                    System.out.println("mysql 2 pv==> " + flowStats.size());
                     flowStats.clear();
                     if (conn != null) {
                         jdbcUtils.closeConnection(conn);
@@ -91,31 +178,169 @@ public class FlowSpark {
     }
 
     /**
+     * 计算uv 存储到mysql
      *
-     * @param filter
-     * @return
+     * @param maprdd
      */
-    private static JavaPairRDD<String, Double> getFlowRDD(JavaRDD<String> filter) {
-        //数据 求按来源分类 每小时的流量 比如 esn api 之类的 开始转换
-        return filter.mapToPair(new PairFunction<String, String, Double>() {
+    private static void calculaUV2Mysql(JavaRDD<String> maprdd) {
+        maprdd.filter(new Function<String, Boolean>() {
+            private static final long serialVersionUID = -3607766750437881657L;
+
             @Override
-            public Tuple2<String, Double> call(String s) throws Exception {
-                String[] keys = s.split("\t");
-                long time = DateUtils2.getTime(keys[7], 2);
-                String type = keys[3];
-                double value = getVal(keys[13]);
-                return new Tuple2<String, Double>(time + "&" + type, value);
+            public Boolean call(String v1) throws Exception {
+                return !v1.contains("empty");
             }
-        }).reduceByKey(new Function2<Double, Double, Double>() {
+        }).map(new Function<String, String>() {
+            private static final long serialVersionUID = 4587494602573607903L;
+
             @Override
-            public Double call(Double v1, Double v2) throws Exception {
+            public String call(String v1) throws Exception {
+                String[] lines = v1.split("&");
+                return lines[0] + "&" + lines[1] + "&" + lines[3];
+            }
+        }).distinct().mapToPair(new PairFunction<String, String, Integer>() {
+            private static final long serialVersionUID = 2694226103861018569L;
+
+            @Override
+            public Tuple2<String, Integer> call(String s) throws Exception {
+                String[] lines = s.split("&");
+                return new Tuple2<String, Integer>(lines[0] +"&"+ lines[1], 1);
+            }
+        }).reduceByKey(new Function2<Integer, Integer, Integer>() {
+            @Override
+            public Integer call(Integer v1, Integer v2) throws Exception {
                 return v1 + v2;
             }
-        }, 1);
+        }).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
+            @Override
+            public void call(Iterator<Tuple2<String, Integer>> iterator) throws Exception {
+                List<FlowStat> flowStats = new ArrayList<FlowStat>();
+                Tuple2<String, Integer> tuple = null;
+                while (iterator.hasNext()) {
+                    tuple = iterator.next();
+                    String[] str = tuple._1.split("&");
+                    int uv = tuple._2;
+                    FlowStat flowStat = new FlowStat();
+                    flowStat.setCreated(str[0]);
+                    flowStat.setFlow(uv);
+                    flowStat.setSiteType(str[1]);
+                    flowStat.setType("1day");
+                    flowStats.add(flowStat);
+                }
+                if (flowStats.size() > 0) {
+                    JDBCUtils jdbcUtils = JDBCUtils.getInstance();
+                    Connection conn = jdbcUtils.getConnection();
+                    FlowStatDAO flowStatDAO = DAOFactory.getFlowStatDAO();
+                    flowStatDAO.updataBatch(flowStats, conn, 0);
+                    System.out.println("mysql 2 uv==> " + flowStats.size());
+                    flowStats.clear();
+                    if (conn != null) {
+                        jdbcUtils.closeConnection(conn);
+                    }
+                }
+            }
+        });
+
+
     }
 
     /**
+     * 计算流量 存储到mysql
      *
+     * @param maprdd
+     */
+    private static void calculaTeaffic2Mysql(JavaRDD<String> maprdd) {
+        maprdd.mapToPair(new PairFunction<String, String, Long>() {
+            private static final long serialVersionUID = 1421708056182878792L;
+
+            @Override
+            public Tuple2<String, Long> call(String s) throws Exception {
+                String[] lines = s.split("&");
+
+
+                return new Tuple2<String, Long>(lines[0] + "&" + lines[1], Long.parseLong(lines[4]));
+            }
+        }).reduceByKey(new Function2<Long, Long, Long>() {
+            private static final long serialVersionUID = -1422762837271470209L;
+
+            @Override
+            public Long call(Long v1, Long v2) throws Exception {
+                return v1 + v2;
+            }
+        }, 1).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Long>>>() {
+            private static final long serialVersionUID = 3812121298368817680L;
+
+            @Override
+            public void call(Iterator<Tuple2<String, Long>> iterator) throws Exception {
+                List<FlowStat> flowStats = new ArrayList<FlowStat>();
+                Tuple2<String, Long> tuple = null;
+
+                while (iterator.hasNext()) {
+                    tuple = iterator.next();
+                    String[] str = tuple._1.split("&");
+                    Long traffic = tuple._2;
+                    FlowStat flowStat = new FlowStat();
+                    flowStat.setCreated(str[0]);
+                    flowStat.setFlow(traffic);
+                    flowStat.setSiteType(str[1]);
+                    flowStat.setType("1day");
+                    flowStats.add(flowStat);
+                }
+                if (flowStats.size() > 0) {
+                    JDBCUtils jdbcUtils = JDBCUtils.getInstance();
+                    Connection conn = jdbcUtils.getConnection();
+                    FlowStatDAO flowStatDAO = DAOFactory.getFlowStatDAO();
+                    flowStatDAO.updataBatch(flowStats, conn, 3);
+                    System.out.println("mysql 2 flowStats==> " + flowStats.size());
+                    flowStats.clear();
+                    if (conn != null) {
+                        jdbcUtils.closeConnection(conn);
+                    }
+                }
+            }
+        });
+
+
+    }
+
+    /**
+     * 复用rdd
+     *
+     * @param source maprdd
+     * @return
+     */
+    private static JavaRDD<String> mapRDD(JavaRDD<String> source) {
+        return source.mapPartitions(new FlatMapFunction<Iterator<String>, String>() {
+            private static final long serialVersionUID = 7108232044577750023L;
+
+            @Override
+            public Iterable<String> call(Iterator<String> iterator) throws Exception {
+                List<String> list = new ArrayList<String>();
+                String[] lines = null;
+                long time = 0l;
+                String siteType = null;
+                String ip = null;
+                String memberId = "";
+                int traffic = 0;
+                while (iterator.hasNext()) {
+                    lines = iterator.next().split("\t");
+                    time = DateUtils2.getTime(lines[7], 1);
+                    siteType = lines[3];
+                    ip = lines[0];
+                    if (lines[23].split(":").length == 2) {
+                        memberId = lines[23].split(":")[1];
+                    }
+                    traffic = getVal(lines[13]);
+                    //time site ip mem tra
+                    list.add(time + "&" + siteType + "&" + ip + "&" + memberId + "&" + traffic);
+                }
+                return list;
+            }
+        });
+    }
+
+
+    /**
      * @param args
      * @param sc
      * @return
@@ -157,16 +382,16 @@ public class FlowSpark {
     }
 
     /**
-     *
      * @param key
      * @return
      */
-    private static double getVal(String key) {
-        double res = 0.0d;
+    private static int getVal(String key) {
+        int res = 0;
         try {
-            res = Double.parseDouble(key);
+            res = Integer.parseInt(key);
         } catch (Exception e) {
             System.out.println("存在非法字符 ==>" + key);
+            return 0;
         }
         return res;
     }

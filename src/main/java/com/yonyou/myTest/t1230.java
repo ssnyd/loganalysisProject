@@ -1,35 +1,33 @@
 package com.yonyou.myTest;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-
 /**
  * Created by chenxiaolei on 16/12/30.
  */
 
 public class t1230 {
     public static void main(String[] args) {
-        Map<String, String> map = new HashMap<String, String>();
-        String ipi = "a";
-        int i = 1;
-        while (i < 1000) {
-            String ip =  new Random().nextInt(20)+"";
-            if (map.get(ip) == null) {
-                map.put(ip, "add");
-                System.out.println(ip +" value aaaa");
-            } else {
-                ipi = map.get(ip);
-                System.out.println(ip +" value "+ipi);
-
-                if (map.size() > 10) {
-                    map.clear();
-                    System.out.println("map 清空啦");
-                }
-            }
-            i++;
-        }
-        System.out.println(map.size());
+        //Map<String, String> map = new HashMap<String, String>();
+        String i ="1.3";
+        System.out.println(Integer.parseInt(i));
+        //String ipi = "a";
+        //int i = 1;
+        //while (i < 1000) {
+        //    String ip =  new Random().nextInt(20)+"";
+        //    if (map.get(ip) == null) {
+        //        map.put(ip, "add");
+        //        System.out.println(ip +" value aaaa");
+        //    } else {
+        //        ipi = map.get(ip);
+        //        System.out.println(ip +" value "+ipi);
+        //
+        //        if (map.size() > 10) {
+        //            map.clear();
+        //            System.out.println("map 清空啦");
+        //        }
+        //    }
+        //    i++;
+        //}
+        //System.out.println(map.size());
         //SparkConf sparkConf = new SparkConf()
         //        .setAppName("ESNStreamingProject")
         //        .setMaster("local[2]");

@@ -98,7 +98,7 @@ public class Esn2hbase2ue {
                 }
             }).distinct();
 //去重后直接存hbase
-            filter.foreachPartition(new VoidFunction<Iterator<String>>() {
+            filter.coalesce(1).foreachPartition(new VoidFunction<Iterator<String>>() {
                 @Override
                 public void call(Iterator<String> iterator) throws Exception {
                     List<Put> puts = new ArrayList<Put>();

@@ -9,5 +9,5 @@ import java.util.List;
  * Created by ChenXiaoLei on 2016/11/16.
  */
 public interface FlowStatDAO {
-    void updataBatch(List<FlowStat> flowStat, Connection connection);
+    void updataBatch(List<FlowStat> flowStat, Connection connection,int num);
 }

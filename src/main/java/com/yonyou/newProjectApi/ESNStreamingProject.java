@@ -6,10 +6,7 @@ import com.yonyou.dao.ILogStatDAO;
 import com.yonyou.dao.factory.DAOFactory;
 import com.yonyou.hbaseUtil.HbaseConnectionFactory;
 import com.yonyou.jdbc.JDBCUtils;
-import com.yonyou.utils.HttpReqUtil;
-import com.yonyou.utils.IdCrypt;
-import com.yonyou.utils.JSONUtil;
-import com.yonyou.utils.SparkUtils;
+import com.yonyou.utils.*;
 import kafka.common.TopicAndPartition;
 import kafka.message.MessageAndMetadata;
 import kafka.serializer.StringDecoder;
@@ -46,7 +43,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class ESNStreamingProject {
     //设置checkpoint
-    private static final String ESNSTREAMING2HBASE = "hdfs://cluster/0105";
+    private static final String ESNSTREAMING2HBASE = "hdfs://cluster/streaming/checkpoin/syb/ESNStreaming2Hbase";
     //设置broker list
     private static final String KAFKA_METADATA_BROKER_LIST = "hdslave1:9092,hdslave2:9092,hdmaster:9092";
     private static final String ESNSTREAMING2HBASE_TOPIC = "esn_accesslog";
@@ -54,7 +51,7 @@ public class ESNStreamingProject {
     private static final String ZOOKEEPER_LIST = "hdslave1:2181,hdslave2:2181,hdmaster:2181";
 
     //设置批处理次时间
-    private static final int ESNSTREAMING2HBASE_TIME = 10;
+    private static final int ESNSTREAMING2HBASE_TIME = 5;
     private static final long SNSTREAMING2HBASE_OFFSET_NUM = 0;
 
 
@@ -198,7 +195,8 @@ public class ESNStreamingProject {
         resultRDD.foreachRDD(new VoidFunction<JavaPairRDD<String, String>>() {
             @Override
             public void call(JavaPairRDD<String, String> rdd) throws Exception {
-                rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
+               //修改的地方 0110
+                rdd.coalesce(1).foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
                     @Override
                     public void call(Iterator<Tuple2<String, String>> tuple2Iterator) throws Exception {
                         Tuple2<String, String> tuple = null;
@@ -211,6 +209,8 @@ public class ESNStreamingProject {
                                 puts.add(put);
                             }
                         }
+                        //0110
+                        System.out.println("hbase size "+puts.size() +DateUtils.gettest());
                         if (puts.size() > 0) {
                             HTable hTable = HbaseConnectionFactory.gethTable("esn_accesslog", "accesslog");
                             hTable.put(puts);
@@ -252,7 +252,7 @@ public class ESNStreamingProject {
                     //是否截取成功
                     if (!"".equals(ip) && ip.length() < 16) {
                         try {
-                            if (ipmap.get(ip) == null) {
+                            if (ipmap.get(ip) == null || "".equals(ipmap.get(ip))) {
                                 //通过接口获取
                                 remote_addr = JSONUtil.getIPStr(HttpReqUtil.getResult("ip/query", ip));
                                 ipmap.put(ip, remote_addr);
@@ -292,7 +292,8 @@ public class ESNStreamingProject {
             public Iterable<String> call(Iterator<String> iterator) throws Exception {
                 List<String> list = new ArrayList<String>();
                 String mquID = "member_id:empty\tqz_id:empty\tuser_id:empty\tinstance_id:empty";
-                Map<String, String> mquimap = new HashMap<String, String>();
+                //token和sessionid对应的qzid会发生变化
+                //Map<String, String> mquimap = new HashMap<String, String>();
                 //存储token
                 String token = "";
                 while (iterator.hasNext()) {
@@ -301,7 +302,7 @@ public class ESNStreamingProject {
                     //求mqu
                     //遇见.htm请求的不分析直接存空
                     if (lines[9].contains(".htm")) {
-                        System.out.println("存在htm 不分析");
+                        System.out.println("存在htm 不分析 ==> "+lines[9]);
                     }
                     //openapi 最后 20位 字段qz_id=80298882&instance_id=78136078&member_id=68175624 需要反编译
                     else if ("openapi".equals(lines[3])) {
@@ -312,18 +313,23 @@ public class ESNStreamingProject {
                         if (lines[19].split(" ")[0].contains("PHPSESSID")) {
                             token = lines[19].split(" ")[0].split("=")[1].split(";")[0];
                         }
-
-
                         if (!"".equals(token) && !token.contains("/") && !token.contains("\\")) {
-                            if (mquimap.get(token) == null) {
+                            try {
                                 mquID = JSONUtil.getmquStr(HttpReqUtil.getResult("user/redis/esn/" + token, ""));
-                                mquimap.put(token, mquID);
-                            } else {
-                                mquID = mquimap.get(token);
-                                if (mquimap.size() > 100) {
-                                    mquimap.clear();
-                                }
+                            } catch (Exception e) {
+                                System.out.println(token + "read time out ! token数据跳过");
+                                System.out.println(token + " ==> json→token");
                             }
+                            //token和sessionid对应的qzid会发生变化
+                            //if (mquimap.get(token) == null || "".equals(mquimap.get(token) ) ) {
+                            //    mquID = JSONUtil.getmquStr(HttpReqUtil.getResult("user/redis/esn/" + token, ""));
+                            //    mquimap.put(token, mquID);
+                            //} else {
+                            //    mquID = mquimap.get(token);
+                            //    if (mquimap.size() > 100) {
+                            //        mquimap.clear();
+                            //    }
+                            //}
                         }
                     } else {
                         //api 寻找access_token
@@ -370,20 +376,28 @@ public class ESNStreamingProject {
                             }
                         }
                         if (!"".equals(token) && !token.contains("/") && !token.contains("\\")) {
-                            if (mquimap.get(token) == null) {
+                            try {
                                 mquID = JSONUtil.getmquStr(HttpReqUtil.getResult("user/redis/api/" + token, ""));
-                                mquimap.put(token, mquID);
-                            } else {
-                                mquID = mquimap.get(token);
-                                if (mquimap.size() > 100) {
-                                    mquimap.clear();
-                                }
+                            } catch (Exception e) {
+                                System.out.println(token + "read time out ! token数据跳过");
+                                System.out.println(token + " ==> json→token");
                             }
+                            //token和sessionid对应的qzid会发生变化
+                            //if (mquimap.get(token) == null || "".equals(mquimap.get(token)) ) {
+                            //    mquID = JSONUtil.getmquStr(HttpReqUtil.getResult("user/redis/api/" + token, ""));
+                            //    mquimap.put(token, mquID);
+                            //} else {
+                            //    mquID = mquimap.get(token);
+                            //    if (mquimap.size() > 100) {
+                            //        mquimap.clear();
+                            //    }
+                            //}
                         }
                     }
                     list.add(line + "\t" + mquID);
                 }
-                mquimap.clear();
+                //token和sessionid对应的qzid会发生变化
+                //mquimap.clear();
                 return list;
             }
         });
@@ -404,6 +418,7 @@ public class ESNStreamingProject {
             public Tuple2<String, String> call(String s) throws Exception {
                 String[] lines = s.split("\t");
                 String key = getTime(lines[7]) + ":" + lines[2] + ":" + lines[3] + ":" + UUID.randomUUID().toString().replace("-", "");
+                //0110
                 System.out.println(key + "==>" + lines[9]);
                 return new Tuple2<String, String>(key, s);
             }
@@ -546,7 +561,7 @@ public class ESNStreamingProject {
             public Integer call(Integer v1, Integer v2) throws Exception {
                 return v1 + v2;
             }
-        });
+        }, 1);
         JavaPairDStream<String, String> maptopair = mapPairDStream.mapToPair(new PairFunction<Tuple2<String, Integer>, String, String>() {
             private static final long serialVersionUID = 1L;
 
@@ -564,23 +579,25 @@ public class ESNStreamingProject {
             public String call(String s, String s2) throws Exception {
                 return s + "#" + s2;
             }
-        });
+        }, 1);
         maptopair.foreachRDD(new Function<JavaPairRDD<String, String>, Void>() {
             private static final long serialVersionUID = 1L;
 
             @Override
             public Void call(JavaPairRDD<String, String> rdd) throws Exception {
-                rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
+                //这里有改动 0110
+                rdd.coalesce(1).foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
                     private static final long serialVersionUID = -872354222578302313L;
 
                     @Override
                     public void call(Iterator<Tuple2<String, String>> tuples) throws Exception {
                         List<Map<String, String>> pvStats = new ArrayList<Map<String, String>>();
                         Tuple2<String, String> tuple = null;
+                        String[] region_count = null;
                         while (tuples.hasNext()) {
                             Map<String, String> pvStat = new HashMap<String, String>();
                             tuple = tuples.next();
-                            String[] region_count = tuple._2.split("#");
+                            region_count = tuple._2.split("#");
                             pvStat.put("timestamp", tuple._1);
                             for (String str : region_count) {
                                 String[] s = str.split("&");
@@ -593,17 +610,29 @@ public class ESNStreamingProject {
                             }
                             pvStats.add(pvStat);
                         }
-                        if (pvStats.size() > 0) {
-                            JDBCUtils jdbcUtils = JDBCUtils.getInstance();
-                            Connection conn = jdbcUtils.getConnection();
-                            ILogStatDAO logStatDAO = DAOFactory.getLogStatDAO();
-                            logStatDAO.updataBatch(pvStats, conn);
-                            System.out.println("mysql  to pvstat ==> " + pvStats.size());
-                            pvStats.clear();
-                            if (conn != null) {
-                                jdbcUtils.closeConnection(conn);
+                        try{
+                            //0110
+                            System.out.println("mysql size"+pvStats.size()+DateUtils.gettest());
+                            if (pvStats.size() > 0) {
+                                JDBCUtils jdbcUtils = JDBCUtils.getInstance();
+                                Connection conn = jdbcUtils.getConnection();
+                                ILogStatDAO logStatDAO = DAOFactory.getLogStatDAO();
+                                logStatDAO.updataBatch(pvStats, conn);
+                                System.out.println("mysql  to pvstat ==> " + pvStats.size());
+                                //for (Map<String, String> map:pvStats){
+                                //    System.out.println(map.get("timestamp"));
+                                //}
+                                //System.out.println("mysql  to pvstat ==> " + pvStats.size());
+                                pvStats.clear();
+                                if (conn != null) {
+                                    jdbcUtils.closeConnection(conn);
+                                }
                             }
+                        } catch (Exception e){
+                            System.out.println("出现错误啦");
+                            e.printStackTrace();
                         }
+
 
                     }
                 });

@@ -10,7 +10,7 @@ public class FlowStat implements Serializable{
     private String created;
     private String type;
     private String siteType;
-    private double flow;
+    private long flow;
 
     public String getCreated() {
         return created;
@@ -36,11 +36,11 @@ public class FlowStat implements Serializable{
         this.siteType = siteType;
     }
 
-    public double getFlow() {
+    public long getFlow() {
         return flow;
     }
 
-    public void setFlow(double flow) {
+    public void setFlow(long flow) {
         this.flow = flow;
     }
 
