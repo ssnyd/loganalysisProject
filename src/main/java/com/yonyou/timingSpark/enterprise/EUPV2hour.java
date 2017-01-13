@@ -48,7 +48,7 @@ public class EUPV2hour {
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
                 .set("spark.shuffle.io.maxRetries", "10")//GC重试次数，默认3
                 .set("spark.shuffle.io.retryWait", "30s");//GC等待时长，默认5s
-      //sconf.setMaster("local[2]");
+        //sconf.setMaster("local[2]");
         JavaSparkContext sc = new JavaSparkContext(sconf);
         Configuration conf = HBaseConfiguration.create();
         Scan scan = new Scan();
@@ -56,10 +56,10 @@ public class EUPV2hour {
         scan.addColumn(Bytes.toBytes("accesslog"), Bytes.toBytes("info"));
         //scan.setStartRow(Bytes.toBytes(DateUtils.getYesterdayDate() + ":#"));
         //scan.setStopRow(Bytes.toBytes(DateUtils.getYesterdayDate() + "::"));
-        if(args.length == 2) {
+        if (args.length == 2) {
             scan.setStartRow(Bytes.toBytes(args[0] + ":#"));
             scan.setStopRow(Bytes.toBytes(args[1] + "::"));
-        }else {
+        } else {
             scan.setStartRow(Bytes.toBytes(DateUtils.getlasthourDate() + ":#"));
             scan.setStopRow(Bytes.toBytes(DateUtils.getlasthourDate() + "::"));
         }
@@ -88,9 +88,9 @@ public class EUPV2hour {
             }).filter(new Function<String, Boolean>() {
                 @Override
                 public Boolean call(String v1) throws Exception {
-                    return v1 != null;
+                    return v1 != null && !"openapi".equals(v1.split("\t")[3]);
                 }
-            }).repartition(100);
+            }).repartition(50);
             //二次过滤 去除 企业ID不存在的
             JavaRDD<String> filter2emppry = filter2empty(filter);
             //格式转换
@@ -107,19 +107,20 @@ public class EUPV2hour {
             e.printStackTrace();
         }
     }
+
     //计算epv 时间戳 企业ID memID
     private static void calculateEPVSta(JavaRDD<String> map2line) {
         map2line.mapToPair(new PairFunction<String, String, Integer>() {
             @Override
             public Tuple2<String, Integer> call(String s) throws Exception {
                 String[] strings = s.split("&");
-                return new Tuple2<String, Integer>(strings[0]+"&"+strings[1],1);
+                return new Tuple2<String, Integer>(strings[0] + "&" + strings[1], 1);
             }
         }).reduceByKey(new Function2<Integer, Integer, Integer>() {
             @Override
             public Integer call(Integer v1, Integer v2) throws Exception {
 
-                return v1+v2;
+                return v1 + v2;
             }
         }).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
             @Override
@@ -138,7 +139,7 @@ public class EUPV2hour {
                     JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                     Connection conn = jdbcUtils.getConnection();
                     IEPVStatDAO epvStatDAO = DAOFactory.getEPVStatDAO();
-                    epvStatDAO.updataBatch(eupvStats,conn);
+                    epvStatDAO.updataBatch(eupvStats, conn);
                     System.out.println("mysql 2 epvstat hour==> " + eupvStats.size());
                     eupvStats.clear();
                     if (conn != null) {
@@ -157,20 +158,20 @@ public class EUPV2hour {
             @Override
             public Tuple2<String, String> call(String s) throws Exception {
                 String[] strings = s.split("&");
-                return new Tuple2<String, String>(strings[0]+"&"+strings[1],strings[2]);
+                return new Tuple2<String, String>(strings[0] + "&" + strings[1], strings[2]);
             }
         })
                 .distinct()
-                .mapToPair(new PairFunction<Tuple2<String,String>, String, Integer>() {
+                .mapToPair(new PairFunction<Tuple2<String, String>, String, Integer>() {
                     @Override
                     public Tuple2<String, Integer> call(Tuple2<String, String> tuple2) throws Exception {
-                        return new Tuple2<String, Integer>(tuple2._1,1);
+                        return new Tuple2<String, Integer>(tuple2._1, 1);
                     }
                 })
                 .reduceByKey(new Function2<Integer, Integer, Integer>() {
                     @Override
                     public Integer call(Integer v1, Integer v2) throws Exception {
-                        return v1+v2;
+                        return v1 + v2;
                     }
                 }).foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>() {
             @Override
@@ -189,7 +190,7 @@ public class EUPV2hour {
                     JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                     Connection conn = jdbcUtils.getConnection();
                     IEUVStatDAO euvStatDAO = DAOFactory.getEUVStatDAO();
-                    euvStatDAO.updataBatch(eupvStats,conn);
+                    euvStatDAO.updataBatch(eupvStats, conn);
                     System.out.println("mysql 2 euvstat hour==> " + eupvStats.size());
                     eupvStats.clear();
                     if (conn != null) {

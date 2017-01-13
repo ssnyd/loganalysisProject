@@ -89,7 +89,7 @@ public class UVIPV2hour {
             }).filter(new Function<String, Boolean>() {
                 @Override
                 public Boolean call(String v1) throws Exception {
-                    return v1 != null;
+                    return v1 != null && !"openapi".equals(v1.split("\t")[3]);
                 }
             });
             filter = filter.persist(StorageLevel.MEMORY_AND_DISK_SER());

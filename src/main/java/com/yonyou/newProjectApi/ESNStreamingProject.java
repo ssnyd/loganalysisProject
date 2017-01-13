@@ -79,11 +79,11 @@ public class ESNStreamingProject {
     public static JavaStreamingContext createContext() {
         SparkConf sparkConf = new SparkConf()
                 .setAppName("ESNStreamingProject")
-                .set("spark.default.parallelism", "10")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
+                .set("spark.default.parallelism", "15")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
                 .set("spark.locality.wait", "100ms")
                 .set("spark.shuffle.manager", "hash")//使用hash的shufflemanager
                 .set("spark.shuffle.consolidateFiles", "true")//shufflemap端开启合并较小落地文件（hashshufflemanager方式一个task对应一个文件，开启合并，reduce端有几个就是固定几个文件，提前分配好省着merge了）
-                .set("spark.storage.memoryFraction", "0.7")
+                .set("spark.storage.memoryFraction", "0.5")
                 .set("spark.shuffle.file.buffer", "64")//shufflemap端mini环形缓冲区bucket的大小调大一倍，默认32KB
                 .set("spark.reducer.maxSizeInFlight", "24")//从shufflemap端拉取数据24，默认48M
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
@@ -91,7 +91,7 @@ public class ESNStreamingProject {
                 .set("spark.shuffle.io.retryWait", "30s")//GC等待时长，默认5s
 
                 ;
-        //设置批次时间 10s
+        //设置批次时间 5s
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(ESNSTREAMING2HBASE_TIME));
         //设置spark容错点
         jssc.checkpoint(ESNSTREAMING2HBASE);
@@ -195,8 +195,8 @@ public class ESNStreamingProject {
         resultRDD.foreachRDD(new VoidFunction<JavaPairRDD<String, String>>() {
             @Override
             public void call(JavaPairRDD<String, String> rdd) throws Exception {
-               //修改的地方 0110
-                rdd.coalesce(1).foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
+                //修改的地方 0110
+                rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
                     @Override
                     public void call(Iterator<Tuple2<String, String>> tuple2Iterator) throws Exception {
                         Tuple2<String, String> tuple = null;
@@ -210,7 +210,7 @@ public class ESNStreamingProject {
                             }
                         }
                         //0110
-                        System.out.println("hbase size "+puts.size() +DateUtils.gettest());
+                        System.out.println("hbase size " + puts.size() + DateUtils.gettest());
                         if (puts.size() > 0) {
                             HTable hTable = HbaseConnectionFactory.gethTable("esn_accesslog", "accesslog");
                             hTable.put(puts);
@@ -302,7 +302,7 @@ public class ESNStreamingProject {
                     //求mqu
                     //遇见.htm请求的不分析直接存空
                     if (lines[9].contains(".htm")) {
-                        System.out.println("存在htm 不分析 ==> "+lines[9]);
+                        System.out.println("存在htm 不分析 ==> " + lines[9]);
                     }
                     //openapi 最后 20位 字段qz_id=80298882&instance_id=78136078&member_id=68175624 需要反编译
                     else if ("openapi".equals(lines[3])) {
@@ -320,16 +320,6 @@ public class ESNStreamingProject {
                                 System.out.println(token + "read time out ! token数据跳过");
                                 System.out.println(token + " ==> json→token");
                             }
-                            //token和sessionid对应的qzid会发生变化
-                            //if (mquimap.get(token) == null || "".equals(mquimap.get(token) ) ) {
-                            //    mquID = JSONUtil.getmquStr(HttpReqUtil.getResult("user/redis/esn/" + token, ""));
-                            //    mquimap.put(token, mquID);
-                            //} else {
-                            //    mquID = mquimap.get(token);
-                            //    if (mquimap.size() > 100) {
-                            //        mquimap.clear();
-                            //    }
-                            //}
                         }
                     } else {
                         //api 寻找access_token
@@ -382,22 +372,10 @@ public class ESNStreamingProject {
                                 System.out.println(token + "read time out ! token数据跳过");
                                 System.out.println(token + " ==> json→token");
                             }
-                            //token和sessionid对应的qzid会发生变化
-                            //if (mquimap.get(token) == null || "".equals(mquimap.get(token)) ) {
-                            //    mquID = JSONUtil.getmquStr(HttpReqUtil.getResult("user/redis/api/" + token, ""));
-                            //    mquimap.put(token, mquID);
-                            //} else {
-                            //    mquID = mquimap.get(token);
-                            //    if (mquimap.size() > 100) {
-                            //        mquimap.clear();
-                            //    }
-                            //}
                         }
                     }
                     list.add(line + "\t" + mquID);
                 }
-                //token和sessionid对应的qzid会发生变化
-                //mquimap.clear();
                 return list;
             }
         });
@@ -535,7 +513,7 @@ public class ESNStreamingProject {
 
             @Override
             public Boolean call(Tuple2<String, String> tuple2) throws Exception {
-                if (tuple2 != null) {
+                if (tuple2 != null && !tuple2._1.contains("openapi")) {
                     return true;
                 }
                 return false;
@@ -580,13 +558,12 @@ public class ESNStreamingProject {
                 return s + "#" + s2;
             }
         }, 1);
-        maptopair.foreachRDD(new Function<JavaPairRDD<String, String>, Void>() {
-            private static final long serialVersionUID = 1L;
+        maptopair.foreachRDD(new VoidFunction<JavaPairRDD<String, String>>() {
+            private static final long serialVersionUID = -1293890758683239645L;
 
             @Override
-            public Void call(JavaPairRDD<String, String> rdd) throws Exception {
-                //这里有改动 0110
-                rdd.coalesce(1).foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
+            public void call(JavaPairRDD<String, String> rdd) throws Exception {
+                rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
                     private static final long serialVersionUID = -872354222578302313L;
 
                     @Override
@@ -610,35 +587,83 @@ public class ESNStreamingProject {
                             }
                             pvStats.add(pvStat);
                         }
-                        try{
+                        try {
                             //0110
-                            System.out.println("mysql size"+pvStats.size()+DateUtils.gettest());
+                            System.out.println("mysql size" + pvStats.size() + DateUtils.gettest());
                             if (pvStats.size() > 0) {
                                 JDBCUtils jdbcUtils = JDBCUtils.getInstance();
                                 Connection conn = jdbcUtils.getConnection();
                                 ILogStatDAO logStatDAO = DAOFactory.getLogStatDAO();
                                 logStatDAO.updataBatch(pvStats, conn);
                                 System.out.println("mysql  to pvstat ==> " + pvStats.size());
-                                //for (Map<String, String> map:pvStats){
-                                //    System.out.println(map.get("timestamp"));
-                                //}
-                                //System.out.println("mysql  to pvstat ==> " + pvStats.size());
                                 pvStats.clear();
                                 if (conn != null) {
                                     jdbcUtils.closeConnection(conn);
                                 }
                             }
-                        } catch (Exception e){
+                        } catch (Exception e) {
                             System.out.println("出现错误啦");
                             e.printStackTrace();
                         }
-
-
                     }
                 });
-                return null;
             }
         });
+
+
+        //maptopair.foreachRDD(new Function<JavaPairRDD<String, String>, Void>() {
+        //    private static final long serialVersionUID = 1L;
+        //
+        //    @Override
+        //    public Void call(JavaPairRDD<String, String> rdd) throws Exception {
+        //        //这里有改动 0110
+        //        rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
+        //            private static final long serialVersionUID = -872354222578302313L;
+        //
+        //            @Override
+        //            public void call(Iterator<Tuple2<String, String>> tuples) throws Exception {
+        //                List<Map<String, String>> pvStats = new ArrayList<Map<String, String>>();
+        //                Tuple2<String, String> tuple = null;
+        //                String[] region_count = null;
+        //                while (tuples.hasNext()) {
+        //                    Map<String, String> pvStat = new HashMap<String, String>();
+        //                    tuple = tuples.next();
+        //                    region_count = tuple._2.split("#");
+        //                    pvStat.put("timestamp", tuple._1);
+        //                    for (String str : region_count) {
+        //                        String[] s = str.split("&");
+        //                        if (pvStat.get(s[0]) != null) {
+        //                            int num = Integer.parseInt(pvStat.get(s[0])) + Integer.parseInt(s[1]);
+        //                            pvStat.put(s[0], num + "");
+        //                        } else {
+        //                            pvStat.put(s[0], s[1]);
+        //                        }
+        //                    }
+        //                    pvStats.add(pvStat);
+        //                }
+        //                try{
+        //                    //0110
+        //                    System.out.println("mysql size"+pvStats.size()+DateUtils.gettest());
+        //                    if (pvStats.size() > 0) {
+        //                        JDBCUtils jdbcUtils = JDBCUtils.getInstance();
+        //                        Connection conn = jdbcUtils.getConnection();
+        //                        ILogStatDAO logStatDAO = DAOFactory.getLogStatDAO();
+        //                        logStatDAO.updataBatch(pvStats, conn);
+        //                        System.out.println("mysql  to pvstat ==> " + pvStats.size());
+        //                        pvStats.clear();
+        //                        if (conn != null) {
+        //                            jdbcUtils.closeConnection(conn);
+        //                        }
+        //                    }
+        //                } catch (Exception e){
+        //                    System.out.println("出现错误啦");
+        //                    e.printStackTrace();
+        //                }
+        //            }
+        //        });
+        //        return null;
+        //    }
+        //});
         return maptopair;
     }
 

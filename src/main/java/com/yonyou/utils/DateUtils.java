@@ -275,22 +275,28 @@ public class DateUtils {
     }
     //根据log信息 转换成当前所在周的周一
     public static String getWeekTime(String timestamp) {
-        SimpleDateFormat day = new SimpleDateFormat("yyyy:MM:dd");
-        Date t = null;
-        String format = "";
+        SimpleDateFormat sdf=new SimpleDateFormat("yyyy:MM:dd"); //设置时间格式
+        Calendar cal = Calendar.getInstance();
+        Date time= null;
         try {
-            t = day.parse(timestamp);
-            Calendar cal = Calendar.getInstance();
-            cal.setTime(t);
-            cal.setFirstDayOfWeek(Calendar.MONDAY);//设置一个星期的第一天，按中国的习惯一个星期的第一天是星期一
-            int days = cal.get(Calendar.DAY_OF_WEEK);//获得当前日期是一个星期的第几天
-            System.out.println(days);
-            cal.add(Calendar.DATE, cal.getFirstDayOfWeek()-days);//根据日历的规则，给当前日期减去星期几与一个星期第一天的差值
-            format = day.format(cal.getTime());
+            time = sdf.parse(timestamp);
         } catch (ParseException e) {
             e.printStackTrace();
         }
-        return format;
+        cal.setTime(time);
+        //System.out.println("要计算日期为:"+sdf.format(cal.getTime())); //输出要计算日期
+
+        //判断要计算的日期是否是周日，如果是则减一天计算周六的，否则会出问题，计算到下一周去了
+        int dayWeek = cal.get(Calendar.DAY_OF_WEEK);//获得当前日期是一个星期的第几天
+        if(1 == dayWeek) {
+            cal.add(Calendar.DAY_OF_MONTH, -1);
+        }
+
+        cal.setFirstDayOfWeek(Calendar.MONDAY);//设置一个星期的第一天，按中国的习惯一个星期的第一天是星期一
+
+        int day = cal.get(Calendar.DAY_OF_WEEK);//获得当前日期是一个星期的第几天
+        cal.add(Calendar.DATE, cal.getFirstDayOfWeek()-day);//根据日历的规则，给当前日期减去星期几与一个星期第一天的差值
+        return sdf.format(cal.getTime());
     }
     //转换成根据log信息 转换成当月的第一天
     public static String getMonthTime(String timestamp) {
@@ -334,10 +340,18 @@ public class DateUtils {
         //System.out.println(parseDate("2016:11:30"));
         //System.out.println(getTimestamp(parseDate("2016:11:30")));
         //System.out.println(getlasthourDate());
-        System.out.println(getWeekTime("2017:01:01"));
-        System.out.println(getMonthTime("2016:12:31"));
-        System.out.println(DateUtils.getYesterdayDate());
-        System.out.println(gettest());
+        //System.out.println(getWeekTime("2017:01:15"));
+        //System.out.println(getWeekTime("2017:01:14"));
+        //System.out.println(getWeekTime("2017:01:13"));
+        //System.out.println(getWeekTime("2017:01:12"));
+        //System.out.println(getWeekTime("2017:01:11"));
+        //System.out.println(getWeekTime("2017:01:10"));
+        //System.out.println(getWeekTime("2017:01:09"));
+        //System.out.println(getWeekTime("2017:01:01"));
+        //System.out.println(getWeekTime("2017:01:02"));
+        //System.out.println(getMonthTime("2016:12:31"));
+        //System.out.println(DateUtils.getYesterdayDate());
+        //System.out.println(gettest());
 
     }
 }

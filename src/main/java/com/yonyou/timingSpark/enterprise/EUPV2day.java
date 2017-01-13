@@ -83,7 +83,7 @@ public class EUPV2day {
             }).filter(new Function<String, Boolean>() {
                 @Override
                 public Boolean call(String v1) throws Exception {
-                    return v1 != null;
+                    return v1 != null&& !"openapi".equals(v1.split("\t")[3]);
                 }
             }).repartition(100);
             //二次过滤 去除 企业ID不存在的
