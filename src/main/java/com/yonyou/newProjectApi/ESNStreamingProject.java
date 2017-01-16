@@ -51,7 +51,7 @@ public class ESNStreamingProject {
     private static final String ZOOKEEPER_LIST = "hdslave1:2181,hdslave2:2181,hdmaster:2181";
 
     //设置批处理次时间
-    private static final int ESNSTREAMING2HBASE_TIME = 5;
+    private static final int ESNSTREAMING2HBASE_TIME = 10;
     private static final long SNSTREAMING2HBASE_OFFSET_NUM = 0;
 
 
@@ -83,12 +83,12 @@ public class ESNStreamingProject {
                 .set("spark.locality.wait", "100ms")
                 .set("spark.shuffle.manager", "hash")//使用hash的shufflemanager
                 .set("spark.shuffle.consolidateFiles", "true")//shufflemap端开启合并较小落地文件（hashshufflemanager方式一个task对应一个文件，开启合并，reduce端有几个就是固定几个文件，提前分配好省着merge了）
-                .set("spark.storage.memoryFraction", "0.5")
+                .set("spark.storage.memoryFraction", "0.7")
                 .set("spark.shuffle.file.buffer", "64")//shufflemap端mini环形缓冲区bucket的大小调大一倍，默认32KB
                 .set("spark.reducer.maxSizeInFlight", "24")//从shufflemap端拉取数据24，默认48M
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
-                .set("spark.shuffle.io.maxRetries", "10")//GC重试次数，默认3
-                .set("spark.shuffle.io.retryWait", "30s")//GC等待时长，默认5s
+                .set("spark.shuffle.io.maxRetries", "20")//GC重试次数，默认3
+                .set("spark.shuffle.io.retryWait", "60s")//GC等待时长，默认5s
 
                 ;
         //设置批次时间 5s
@@ -147,9 +147,21 @@ public class ESNStreamingProject {
                     }
                 }
         );
+               // .repartition(20);
+        JavaDStream<String> line2map = line.mapToPair(new PairFunction<String, Integer, String>() {
+            @Override
+            public Tuple2<Integer, String> call(String s) throws Exception {
+                return new Tuple2<Integer, String>((int) (1 + Math.random() * (3 - 1 + 1)), s);
+            }
+        }).repartition(20).map(new Function<Tuple2<Integer, String>, String>() {
+            @Override
+            public String call(Tuple2<Integer, String> v1) throws Exception {
+                return v1._2;
+            }
+        });
         //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
         // 1 过滤数据源
-        JavaDStream<String> filter = filter(line);
+        JavaDStream<String> filter = filter(line2map);
         // 2 添加区域字段
         JavaDStream<String> modifyRDD2Area = modifyRDD2Area(filter);
         //增加mqui字段
@@ -196,7 +208,7 @@ public class ESNStreamingProject {
             @Override
             public void call(JavaPairRDD<String, String> rdd) throws Exception {
                 //修改的地方 0110
-                rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
+                rdd.coalesce(1).foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
                     @Override
                     public void call(Iterator<Tuple2<String, String>> tuple2Iterator) throws Exception {
                         Tuple2<String, String> tuple = null;
@@ -563,7 +575,7 @@ public class ESNStreamingProject {
 
             @Override
             public void call(JavaPairRDD<String, String> rdd) throws Exception {
-                rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
+                rdd.coalesce(1).foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
                     private static final long serialVersionUID = -872354222578302313L;
 
                     @Override

@@ -44,7 +44,7 @@ public class UVIPVSpark {
     public static void main(String[] args) {
         SparkConf sconf = new SparkConf()
                 .setAppName("uvipvSpark")
-                .set("spark.default.parallelism", "50")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
+                .set("spark.default.parallelism", "150")//並行度，reparation后生效(因为集群现在的配置是8核，按照每个核心有一个vcore，就是16，三个worker节点，就是16*3，并行度设置为3倍的话：16*3*3=144，故，这里设置150)
                 .set("spark.locality.wait", "100ms")
                 .set("spark.shuffle.manager", "hash")//使用hash的shufflemanager
                 .set("spark.shuffle.consolidateFiles", "true")//shufflemap端开启合并较小落地文件（hashshufflemanager方式一个task对应一个文件，开启合并，reduce端有几个就是固定几个文件，提前分配好省着merge了）
@@ -73,7 +73,7 @@ public class UVIPVSpark {
             conf.set(TableInputFormat.SCAN, ScanToString);
             JavaPairRDD<ImmutableBytesWritable, Result> myRDD =
                     sc.newAPIHadoopRDD(conf, TableInputFormat.class,
-                            ImmutableBytesWritable.class, Result.class).repartition(50);
+                            ImmutableBytesWritable.class, Result.class).repartition(150);
             //读取的每一行数据
             JavaRDD<String> filter = myRDD.map(new Function<Tuple2<ImmutableBytesWritable, Result>, String>() {
                 @Override

@@ -73,7 +73,7 @@ public class applySpark {
             conf.set(TableInputFormat.SCAN, ScanToString);
             JavaPairRDD<ImmutableBytesWritable, Result> myRDD =
                     sc.newAPIHadoopRDD(conf, TableInputFormat.class,
-                            ImmutableBytesWritable.class, Result.class).repartition(200);
+                            ImmutableBytesWritable.class, Result.class).repartition(150);
             //读取的每一行数据
             JavaRDD<String> filterRDD = myRDD.map(new Function<Tuple2<ImmutableBytesWritable, Result>, String>() {
                 @Override
@@ -116,6 +116,7 @@ public class applySpark {
                     List<String> list = new ArrayList<>();
                     String app_id = "";
                     String line = "";
+                    String opid = "";
                     while (iterator.hasNext()) {
                         line = iterator.next();
                         app_id = line.split("&")[1].split(":")[1];
@@ -123,7 +124,7 @@ public class applySpark {
                             String[] str = line.split("&");
                             line = "open_appid:" + app_id + "&" + "name:empty" + "&" + str[0] + "&" + "app_id:0" + "&" + str[2] + "&" + str[3] + "&" + str[4] + "&" + str[5];
                         } else {
-                            String opid = JSONUtil.getopenId(HttpReqUtil.getResult("app/info/" + app_id, ""));
+                            opid = JSONUtil.getopenId(HttpReqUtil.getResult("app/info/" + app_id, ""));
                             line = opid + "&" + line;
                         }
                         //open_appid:110&name:协同日程新&action:view&app_id:22239&instance_id:3219&qz_id:3968&member_id:3469&mtime:1480044831884

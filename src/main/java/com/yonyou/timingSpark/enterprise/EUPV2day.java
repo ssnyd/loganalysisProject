@@ -54,9 +54,13 @@ public class EUPV2day {
         Scan scan = new Scan();
         scan.addFamily(Bytes.toBytes("accesslog"));
         scan.addColumn(Bytes.toBytes("accesslog"), Bytes.toBytes("info"));
+        if (args.length == 2) {
+            scan.setStartRow(Bytes.toBytes(args[0] + ":#"));
+            scan.setStopRow(Bytes.toBytes(args[1] + "::"));
+        } else {
             scan.setStartRow(Bytes.toBytes(DateUtils.getYesterdayDate() + ":#"));
             scan.setStopRow(Bytes.toBytes(DateUtils.getYesterdayDate() + "::"));
-
+        }
         //scan.setStartRow(Bytes.toBytes(DateUtils.getlasthourDate() + ":#"));
         //scan.setStopRow(Bytes.toBytes(DateUtils.getlasthourDate() + "::"));
 
@@ -85,7 +89,7 @@ public class EUPV2day {
                 public Boolean call(String v1) throws Exception {
                     return v1 != null&& !"openapi".equals(v1.split("\t")[3]);
                 }
-            }).repartition(100);
+            }).repartition(150);
             //二次过滤 去除 企业ID不存在的
             JavaRDD<String> filter2emppry = filter2empty(filter);
             //格式转换
