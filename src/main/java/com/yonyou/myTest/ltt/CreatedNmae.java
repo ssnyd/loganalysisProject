@@ -106,7 +106,7 @@ public class CreatedNmae {
     }
 
     public static void main(String[] args) {
-        for (int i = 0; i < 3000; i++) {
+        for (int i = 0; i < 7000; i++) {
             System.out.println(getAddress());
         }
     }

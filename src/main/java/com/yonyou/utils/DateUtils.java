@@ -1,5 +1,7 @@
 package com.yonyou.utils;
 
+import com.alibaba.fastjson.JSONObject;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -329,6 +331,12 @@ public class DateUtils {
     }
     public static void main(String[] args)
     {
+
+        JSONObject jsonObject = JSONObject.parseObject("{\"action\":\"view\",\"app_id\":\"21487\",\"client\":\"ios\",\"client_ip\":\"123.103.9.7\",\"device_model\":\"iPhone 6S Plus\",\"device_name\":\"苹果\",\"instance_id\":\"4785\",\"member_id\":\"444225\",\"mtime\":\"1484038850788\",\"object_id\":\"\",\"qz_id\":\"5417\",\"user_id\":\"444155\",\"ver_code\":\"3.0.8\"}");
+        Long mtime = jsonObject.getLong("mtime");
+        System.out.println(mtime);
+        long time = DateUtils.timeStamp2Date(mtime, null);
+        System.out.println(time);
         //JSONObject jsonObject = JSONObject.parseObject("{\"action\":\"view\",\"app_id\":\"22239\",\"client\":\"android\",\"client_ip\":\"123.1.4.5\",\"device_model\":\"SM-G9250\",\"device_name\":\"三星\",\"instance_id\":\"4785\",\"member_id\":\"3469\",\"mtime\":\"1482134768290\",\"object_id\":\"123456789\",\"qz_id\":\"74269\",\"user_id\":\"0\",\"ver_code\":\"3.0.5\"}");
         //JSONObject s = JSONObject.parseObject("{\"action\":\"view\",\"app_id\":\"99999\",\"client\":\"android\",\"client_ip\":\"123.1.4.5\",\"device_model\":\"SM-G9250\",\"device_name\":\"三星\",\"instance_id\":\"128261\",\"member_id\":\"3469\",\"mtime\":\"1482137412506\",\"object_id\":\"6123456\",\"qz_id\":\"88888\",\"user_id\":\"0\",\"ver_code\":\"3.0.5\"}");
         //Long mtime = s.getLong("mtime");

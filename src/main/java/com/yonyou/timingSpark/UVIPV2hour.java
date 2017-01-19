@@ -98,8 +98,6 @@ public class UVIPV2hour {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-
     }
 
     private static JavaPairRDD<String, Integer> calculateUVSta(JavaRDD<String> line) {

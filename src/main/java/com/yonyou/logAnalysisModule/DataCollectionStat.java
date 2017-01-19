@@ -123,10 +123,10 @@ public class DataCollectionStat {
                     long time = DateUtils.timeStamp2Date(mtime, null);
                 return new Tuple2<String, String>(time+":"+UUID.randomUUID().toString().replace("-",""),tuple);
             }
-        }).foreachRDD(new VoidFunction<JavaPairRDD<String, String>>() {
+        }).repartition(1).foreachRDD(new VoidFunction<JavaPairRDD<String, String>>() {
             @Override
             public void call(JavaPairRDD<String, String> rdd) throws Exception {
-                rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
+                rdd.coalesce(1).foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
                     @Override
                     public void call(Iterator<Tuple2<String, String>> iterator) throws Exception {
                         Tuple2<String, String> tuple = null;
@@ -143,7 +143,7 @@ public class DataCollectionStat {
                             HTable hTable = HbaseConnectionFactory.gethTable("esn_datacollection", "app_case");
                             hTable.put(puts);
                             hTable.flushCommits();
-                            System.out.println("hbase ==> "+puts.size());
+                            System.out.println("hbase ==> "+puts.size()+" ==> "+DateUtils.gettest());
                             puts.clear();
                             if (hTable!=null){
                                 hTable.close();
