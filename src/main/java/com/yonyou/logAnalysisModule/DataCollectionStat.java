@@ -58,6 +58,7 @@ public class DataCollectionStat {
                 .set("spark.streaming.blockInterval", "100")//ms→RDD
                 .set("spark.streaming.unpersist", "true")
                 .set("spark.shuffle.io.maxRetries", "60")
+                .set("spark.cleaner.ttl","43200")
                 .set("spark.shuffle.io.retryWait", "60s")
                 .set("spark.reducer.maxSizeInFlight", "12")
                 .set("spark.streaming.receiver.writeAheadLog.enable", "true");
@@ -121,7 +122,7 @@ public class DataCollectionStat {
                     JSONObject jsonObject = JSONObject.parseObject(tuple);
                     Long mtime = jsonObject.getLong("mtime");
                     long time = DateUtils.timeStamp2Date(mtime, null);
-                return new Tuple2<String, String>(time+":"+UUID.randomUUID().toString().replace("-",""),tuple);
+                return new Tuple2<String, String>(time+":0"+UUID.randomUUID().toString().replace("-",""),tuple);
             }
         }).repartition(1).foreachRDD(new VoidFunction<JavaPairRDD<String, String>>() {
             @Override

@@ -56,6 +56,7 @@ public class JSONUtil {
         member_id = jsonObject.getString("member_id");
         qz_id = jsonObject.getString("qz_id");
         String mtime = jsonObject.getString("mtime");
+        //
         return "action:"+action+"&app_id:"+app_id+"&instance_id:"+instance_id+"&qz_id:"+qz_id+"&member_id:"+member_id+"&mtime:"+mtime;
     }
     public static String getMember(String resultjson){

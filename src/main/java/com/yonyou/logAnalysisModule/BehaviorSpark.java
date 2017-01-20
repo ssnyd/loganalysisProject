@@ -60,6 +60,7 @@ public class BehaviorSpark {
                 .set("spark.streaming.unpersist", "true")
                 .set("spark.shuffle.io.maxRetries", "60")
                 .set("spark.shuffle.io.retryWait", "60s")
+                .set("spark.cleaner.ttl","43200")
                 .set("spark.reducer.maxSizeInFlight", "12")
                 .set("spark.streaming.receiver.writeAheadLog.enable", "true");
 //      conf.setMaster("local[2]");//本地测试

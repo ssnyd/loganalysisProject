@@ -89,7 +89,7 @@ public class ESNStreamingProject {
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
                 .set("spark.shuffle.io.maxRetries", "20")//GC重试次数，默认3
                 .set("spark.shuffle.io.retryWait", "60s")//GC等待时长，默认5s
-
+                .set("spark.cleaner.ttl","43200")
                 ;
         //设置批次时间 5s
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(ESNSTREAMING2HBASE_TIME));

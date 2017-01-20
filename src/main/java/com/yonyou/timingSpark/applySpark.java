@@ -13,6 +13,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.filter.CompareFilter;
+import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.RowFilter;
+import org.apache.hadoop.hbase.filter.SubstringComparator;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
 import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
@@ -31,7 +35,10 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * Created by ChenXiaoLei on 2016/11/25.
@@ -55,15 +62,15 @@ public class applySpark {
         Scan scan = new Scan();
         scan.addFamily(Bytes.toBytes("app_case"));
         scan.addColumn(Bytes.toBytes("app_case"), Bytes.toBytes("log"));
-//      scan.setStartRow(Bytes.toBytes(getTimes("2016:11:28")+":#"));
-//      scan.setStopRow(Bytes.toBytes(getTimes("2016:11:28")+"::"));
+        Filter filter = null;
         if (args.length == 2) {
-            scan.setStartRow(Bytes.toBytes(getTimes(args[0]) + ":#"));
-            scan.setStopRow(Bytes.toBytes(getTimes(args[1]) + "::"));
+            filter = new RowFilter(CompareFilter.CompareOp.EQUAL,
+                    new SubstringComparator(getTimes(args[0]) + ":"));
         } else {
-            scan.setStartRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + ":#"));
-            scan.setStopRow(Bytes.toBytes(getTimes(DateUtils.getYesterdayDate()) + "::"));
+            filter = new RowFilter(CompareFilter.CompareOp.EQUAL,
+                    new SubstringComparator(getTimes(DateUtils.getYesterdayDate()) + ":"));
         }
+        scan.setFilter(filter);
 
         try {
             final String tableName = "esn_datacollection";
@@ -120,7 +127,7 @@ public class applySpark {
                     while (iterator.hasNext()) {
                         line = iterator.next();
                         app_id = line.split("&")[1].split(":")[1];
-                        if (app_id.contains("-") ||app_id.contains("+")) {
+                        if (app_id.contains("-") || app_id.contains("+")) {
                             String[] str = line.split("&");
                             line = "open_appid:" + app_id + "&" + "name:empty" + "&" + str[0] + "&" + "app_id:0" + "&" + str[2] + "&" + str[3] + "&" + str[4] + "&" + str[5];
                         } else {
@@ -432,6 +439,7 @@ public class applySpark {
 
     /**
      * 获得当天时间戳 hbase rowkey
+     *
      * @param date
      * @return
      */
