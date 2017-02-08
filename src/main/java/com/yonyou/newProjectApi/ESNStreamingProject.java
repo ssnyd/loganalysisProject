@@ -89,7 +89,6 @@ public class ESNStreamingProject {
                 .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")//序列化
                 .set("spark.shuffle.io.maxRetries", "20")//GC重试次数，默认3
                 .set("spark.shuffle.io.retryWait", "60s")//GC等待时长，默认5s
-                .set("spark.cleaner.ttl","43200")
                 ;
         //设置批次时间 5s
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(ESNSTREAMING2HBASE_TIME));
@@ -151,9 +150,9 @@ public class ESNStreamingProject {
         JavaDStream<String> line2map = line.mapToPair(new PairFunction<String, Integer, String>() {
             @Override
             public Tuple2<Integer, String> call(String s) throws Exception {
-                return new Tuple2<Integer, String>((int) (1 + Math.random() * (3 - 1 + 1)), s);
+                return new Tuple2<Integer, String>((int) (1 + Math.random() * (6 - 1 + 1)), s);
             }
-        }).repartition(20).map(new Function<Tuple2<Integer, String>, String>() {
+        }).repartition(6).map(new Function<Tuple2<Integer, String>, String>() {
             @Override
             public String call(Tuple2<Integer, String> v1) throws Exception {
                 return v1._2;
@@ -622,60 +621,6 @@ public class ESNStreamingProject {
             }
         });
 
-
-        //maptopair.foreachRDD(new Function<JavaPairRDD<String, String>, Void>() {
-        //    private static final long serialVersionUID = 1L;
-        //
-        //    @Override
-        //    public Void call(JavaPairRDD<String, String> rdd) throws Exception {
-        //        //这里有改动 0110
-        //        rdd.foreachPartition(new VoidFunction<Iterator<Tuple2<String, String>>>() {
-        //            private static final long serialVersionUID = -872354222578302313L;
-        //
-        //            @Override
-        //            public void call(Iterator<Tuple2<String, String>> tuples) throws Exception {
-        //                List<Map<String, String>> pvStats = new ArrayList<Map<String, String>>();
-        //                Tuple2<String, String> tuple = null;
-        //                String[] region_count = null;
-        //                while (tuples.hasNext()) {
-        //                    Map<String, String> pvStat = new HashMap<String, String>();
-        //                    tuple = tuples.next();
-        //                    region_count = tuple._2.split("#");
-        //                    pvStat.put("timestamp", tuple._1);
-        //                    for (String str : region_count) {
-        //                        String[] s = str.split("&");
-        //                        if (pvStat.get(s[0]) != null) {
-        //                            int num = Integer.parseInt(pvStat.get(s[0])) + Integer.parseInt(s[1]);
-        //                            pvStat.put(s[0], num + "");
-        //                        } else {
-        //                            pvStat.put(s[0], s[1]);
-        //                        }
-        //                    }
-        //                    pvStats.add(pvStat);
-        //                }
-        //                try{
-        //                    //0110
-        //                    System.out.println("mysql size"+pvStats.size()+DateUtils.gettest());
-        //                    if (pvStats.size() > 0) {
-        //                        JDBCUtils jdbcUtils = JDBCUtils.getInstance();
-        //                        Connection conn = jdbcUtils.getConnection();
-        //                        ILogStatDAO logStatDAO = DAOFactory.getLogStatDAO();
-        //                        logStatDAO.updataBatch(pvStats, conn);
-        //                        System.out.println("mysql  to pvstat ==> " + pvStats.size());
-        //                        pvStats.clear();
-        //                        if (conn != null) {
-        //                            jdbcUtils.closeConnection(conn);
-        //                        }
-        //                    }
-        //                } catch (Exception e){
-        //                    System.out.println("出现错误啦");
-        //                    e.printStackTrace();
-        //                }
-        //            }
-        //        });
-        //        return null;
-        //    }
-        //});
         return maptopair;
     }
 

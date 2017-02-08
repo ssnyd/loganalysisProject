@@ -111,5 +111,15 @@ public class DAOFactory {
     public static FlowStatDAO getFlowStatDAO() {
         return new FlowStatDAOImpl();
     }
+
+    /**
+     * pay接口
+     *
+     * @return
+     *
+     */
+    public static IPayEUUVDAO getPayStatDAO() {
+        return new PayEUUVDAOImpl();
+    }
 }
 
