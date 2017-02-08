@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
+ * 计算每天的以企业为单位的 ev euv epv
  * Created by chenxiaolei on 16/12/13.
  */
 public class EUPV2hour {

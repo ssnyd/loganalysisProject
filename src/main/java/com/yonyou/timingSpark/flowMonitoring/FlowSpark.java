@@ -33,6 +33,7 @@ import java.util.List;
 /**
  * Created by chenxiaolei on 16/12/29.
  * com.yonyou.timingSpark.flowMonitoring.FlowSpark
+ * 计算流量 及每天的pv
  */
 public class FlowSpark {
     public static void main(String[] args) {
@@ -256,8 +257,6 @@ public class FlowSpark {
             @Override
             public Tuple2<String, Long> call(String s) throws Exception {
                 String[] lines = s.split("&");
-
-
                 return new Tuple2<String, Long>(lines[0] + "&" + lines[1], Long.parseLong(lines[4]));
             }
         }).reduceByKey(new Function2<Long, Long, Long>() {

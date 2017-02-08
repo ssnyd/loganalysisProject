@@ -32,7 +32,7 @@ import java.util.*;
 
 /**
  * Created by chenxiaolei on 16/12/14.
- *
+ * 付费 的 日 周 月
  * .payUVEV.EUUV2day;
  */
 public class EUUV2day {

@@ -38,6 +38,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
+ * 企业应用 获取 以企业 为单位 计算uv qz 对应李亮
  * Created by chenxiaolei on 16/12/29.
  */
 public class ApplyEnterpriseProject {
